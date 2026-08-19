@@ -678,18 +678,6 @@ select option:hover, select option:checked { background-color: var(--primary-wea
 }
 
 /* ============================================================
-   移动端底部 Tab
-   ============================================================ */
-.mobile-tab {
-  flex: 1; text-align: center; padding: 8px 0 6px; font-size: 11px; color: var(--text-2);
-  display: flex; flex-direction: column; gap: 3px; align-items: center;
-  transition: color 0.2s var(--ease), transform 0.15s var(--ease);
-}
-.mobile-tab .tab-icon { font-size: 19px; transition: transform 0.2s var(--ease); }
-.mobile-tab.active { color: var(--primary); font-weight: 700; text-shadow: 0 0 12px rgba(34, 211, 238, 0.5); }
-.mobile-tab.active .tab-icon { transform: translateY(-2px) scale(1.15); }
-
-/* ============================================================
    加载 / 骨架
    ============================================================ */
 /* ============================================================
@@ -861,27 +849,6 @@ select option:hover, select option:checked { background-color: var(--primary-wea
 .hud-bar__spacer { flex: 1; }
 .hud-bar__scene { color: var(--primary); font-weight: 600; white-space: nowrap; }
 .hud-bar__clock { color: var(--text-2); white-space: nowrap; }
-
-/* ============================================================
-   移动端布局
-   ============================================================ */
-.mobile-shell { min-height: 100vh; padding-bottom: 72px; background: var(--bg-grad); }
-.mobile-header {
-  position: sticky; top: 0; z-index: 15;
-  background: var(--card); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-  border-bottom: 1px solid var(--border); padding: 13px 16px;
-  display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 1px 0 var(--border), 0 8px 30px -14px rgba(34, 211, 238, 0.30);
-}
-.mobile-header-title { font-size: 16px; font-weight: 800; letter-spacing: 0.3px; }
-.mobile-body { padding: 16px; }
-.mobile-tabbar {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: var(--card); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-  border-top: 1px solid var(--border); display: flex; z-index: 15;
-  box-shadow: 0 -1px 0 var(--border), 0 -10px 34px -12px rgba(34, 211, 238, 0.32);
-  padding-bottom: env(safe-area-inset-bottom);
-}
 
 /* ============================================================
    Hero / 欢迎区（更精致）

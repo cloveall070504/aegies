@@ -155,7 +155,7 @@ export default function SystemSettings() {
       <div className="card">
         <h3 className="section-title"><span className="dot" />快速入口</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
-          <button className="btn" onClick={() => navigate('/admin')}>🗂️ 用户管理</button>
+          <button className="btn" onClick={() => navigate('/users')}>🗂️ 用户管理</button>
           <button className="btn" onClick={() => navigate('/students')}>👥 学员管理</button>
           <button className="btn" onClick={() => navigate('/teacher')}>🛠️ 教学创作台</button>
         </div>

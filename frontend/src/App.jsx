@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import useAuthStore from './store/authStore'
 import useThemeStore from './store/themeStore'
-import { isMobileViewport } from './utils/media'
 import ErrorBoundary from './components/ErrorBoundary'
 
 // PC 端页面
@@ -31,21 +30,8 @@ import TrainingReportTeacher from './pages/PC/TrainingReportTeacher'
 import SystemInfo from './pages/PC/SystemInfo'
 import UsersPage from './pages/PC/UsersPage'
 
-// 移动端页面
-import MobileLogin from './pages/Mobile/Login'
-import MobileHome from './pages/Mobile/Home'
-import MobileScan from './pages/Mobile/Scan'
-import MobileInfer from './pages/Mobile/Infer'
-import MobileProfile from './pages/Mobile/Profile'
-import MobileDocs from './pages/Mobile/Docs'
-import MobileSimTrain from './pages/Mobile/SimTrain'
-import MobileTrainingReport from './pages/Mobile/TrainingReport'
-import MobileTrainingOverview from './pages/Mobile/TrainingOverview'
-import MobileAssignments from './pages/Mobile/Assignments'
-
 // 布局
 import PCLayout from './layouts/PCLayout'
-import MobileLayout from './layouts/MobileLayout'
 
 function Protected({ children }) {
   const { token } = useAuthStore()
@@ -76,14 +62,9 @@ function RoleGuard({ children, roles }) {
   return <ErrorBoundary>{children}</ErrorBoundary>
 }
 
-function useMediaNav() {
-  const isMobile = isMobileViewport()
-  return isMobile ? '/mobile/home' : '/dashboard'
-}
-
 export default function App() {
   const { theme } = useThemeStore()
-  const home = useMediaNav()
+  const home = '/dashboard'
   const location = useLocation()
 
   useEffect(() => {
@@ -96,9 +77,8 @@ export default function App() {
 
   return (
     <Routes>
-      {/* 登录（按视口分发） */}
+      {/* 登录 */}
       <Route path="/login" element={<Login />} />
-      <Route path="/mobile/login" element={<MobileLogin />} />
 
       {/* PC 端 */}
       <Route
@@ -192,21 +172,6 @@ export default function App() {
         path="/training/:sceneCode"
         element={<Protected><PCLayout><TrainingReport /></PCLayout></Protected>}
       />
-
-      {/* 移动端 */}
-      <Route path="/mobile/home" element={<Protected><MobileLayout><MobileHome /></MobileLayout></Protected>} />
-      <Route path="/mobile/scan" element={<Protected><MobileLayout><MobileScan /></MobileLayout></Protected>} />
-      <Route path="/mobile/infer" element={<Protected><MobileLayout><MobileInfer /></MobileLayout></Protected>} />
-      <Route path="/mobile/profile" element={<Protected><MobileLayout><MobileProfile /></MobileLayout></Protected>} />
-      <Route path="/mobile/docs" element={<Protected><MobileLayout><MobileDocs /></MobileLayout></Protected>} />
-      {/* Mobile：分步骤模拟培训 */}
-      <Route path="/mobile/sim/:sceneCode/:stage" element={<Protected><MobileLayout><MobileSimTrain /></MobileLayout></Protected>} />
-      {/* Mobile：培训总览 */}
-      <Route path="/mobile/training" element={<Protected><MobileLayout><MobileTrainingOverview /></MobileLayout></Protected>} />
-      {/* Mobile：单场景培训报告 */}
-      <Route path="/mobile/training/:sceneCode" element={<Protected><MobileLayout><MobileTrainingReport /></MobileLayout></Protected>} />
-      {/* Mobile：作业中心 */}
-      <Route path="/mobile/assignments" element={<Protected><MobileLayout><MobileAssignments /></MobileLayout></Protected>} />
 
       <Route path="*" element={<Navigate to={home} replace />} />
     </Routes>

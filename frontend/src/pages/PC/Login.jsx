@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../../api/auth'
-import { isMobileViewport } from '../../utils/media'
 import useAuthStore from '../../store/authStore'
 
-const PROTECTED_PREFIX = '/dashboard|/scenario|/sandbox|/profile|/scan|/cases|/docs|/quiz|/admin|/mobile'
+const PROTECTED_PREFIX = '/dashboard|/scenario|/sandbox|/profile|/scan|/cases|/docs|/quiz|/admin'
 
 export default function Login() {
   const [username, setUsername] = useState('student')
@@ -25,7 +24,7 @@ export default function Login() {
       if (from && new RegExp(`^(${PROTECTED_PREFIX})`).test(from.pathname)) {
         navigate(from.pathname, { replace: true })
       } else {
-        navigate(isMobileViewport() ? '/mobile/home' : '/dashboard', { replace: true })
+        navigate('/dashboard', { replace: true })
       }
     } catch (err) {
       setError(err.message)

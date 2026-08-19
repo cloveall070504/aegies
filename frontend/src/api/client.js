@@ -11,7 +11,7 @@ const client = axios.create({
 client.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token || ''
   if (token) config.headers.Authorization = `Bearer ${token}`
-  config.headers['X-Client-Type'] = window.innerWidth < 768 ? 'mobile' : 'pc'
+  config.headers['X-Client-Type'] = 'pc' // 仅保留 PC 端
   return config
 })
 

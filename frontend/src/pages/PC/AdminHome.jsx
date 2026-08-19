@@ -70,7 +70,7 @@ export default function AdminHome() {
               </div>
             ))
           )}
-          <button className="btn-outline" style={{ width: '100%', marginTop: 12 }} onClick={() => navigate('/admin')}>前往用户管理 →</button>
+          <button className="btn-outline" style={{ width: '100%', marginTop: 12 }} onClick={() => navigate('/users')}>前往用户管理 →</button>
         </div>
 
         <div className="card">

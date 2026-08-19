@@ -8,8 +8,14 @@ env/
 
 # 数据库与数据文件
 *.db
+*.db-wal
+*.db-shm
+backend/*.db.*.bak
 backend/data/
 !backend/data/.gitkeep
+
+# 本地备份/虚拟环境副本（非版本控制）
+.venv_bak/
 
 # Node
 node_modules/
