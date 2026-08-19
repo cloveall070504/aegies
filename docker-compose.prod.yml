@@ -1,0 +1,76 @@
+# ============================================================
+# 生产部署（Linux 云服务器）
+# 前提：
+#   1. 服务器已安装 docker + docker compose
+#   2. 域名已解析到本机公网 IP，且防火墙放行 80/443
+#   3. 已存在 .env（由 .env.example 复制并填好；本项目已生成 .env）
+# 用法：
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+# 访问：https://${DOMAIN}
+# 说明：
+#   - Caddy 自动向 Let's Encrypt 申请/续期 TLS 证书（HTTPS）
+#   - 前端 nginx 已把 /api 反代到 backend，浏览器同源无跨域
+#   - 数据持久化在 named volume: pgdata / caddy_data / caddy_config
+# ============================================================
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://avoid_user:${DB_PASSWORD}@db:5432/avoid_error
+      SECRET_KEY: ${SECRET_KEY}
+      CORS_ORIGINS: "https://${DOMAIN}"
+      ENABLE_OLLAMA: "${ENABLE_OLLAMA:-false}"
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      LOG_LEVEL: "INFO"
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: avoid_error
+      POSTGRES_USER: avoid_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avoid_user -d avoid_error"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
