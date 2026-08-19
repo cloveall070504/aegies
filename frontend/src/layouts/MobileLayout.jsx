@@ -1,18 +1,21 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import ThemeToggle from '../components/ThemeToggle'
+import SceneSelector from '../components/SceneSelector'
 import useAuthStore from '../store/authStore'
+import useThemeStore from '../store/themeStore'
 
 const TABS = [
   { to: '/mobile/home', label: '首页', icon: '🏠' },
+  { to: '/mobile/training', label: '学习', icon: '🎓' },
   { to: '/mobile/scan', label: '扫描', icon: '🔍' },
   { to: '/mobile/infer', label: '推演', icon: '🧪' },
-  { to: '/mobile/quiz', label: '自测', icon: '📝' },
+  { to: '/mobile/assignments', label: '作业', icon: '📋' },
   { to: '/mobile/profile', label: '我的', icon: '👤' },
 ]
 
 export default function MobileLayout({ children }) {
   const { logout } = useAuthStore()
   const navigate = useNavigate()
+  const theme = useThemeStore((s) => s.theme)
 
   const onLogout = () => {
     logout()
@@ -20,58 +23,29 @@ export default function MobileLayout({ children }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: 64, background: 'var(--bg)' }}>
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          background: 'var(--card)',
-          borderBottom: '1px solid var(--border)',
-          padding: '10px 14px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <strong style={{ fontSize: 15 }}>AI实操避错</strong>
+    <div className="mobile-shell">
+      <header className="mobile-header">
+        <SceneSelector compact />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <ThemeToggle />
-          <button className="btn-outline" onClick={onLogout} style={{ padding: '4px 10px', fontSize: 12 }}>退出</button>
+          <button
+            className="theme-toggle theme-toggle--sm"
+            onClick={() => useThemeStore.getState().toggleTheme()}
+            title="切换暗色 / 浅色"
+          >
+            <span className="theme-toggle__icon">{theme === 'dark' ? '🌙' : '☀️'}</span>
+          </button>
+          <button className="btn-outline chip-btn" onClick={onLogout}>退出</button>
         </div>
       </header>
-      <main style={{ padding: 14 }}>{children}</main>
-      <nav
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: 'var(--card)',
-          borderTop: '1px solid var(--border)',
-          display: 'flex',
-          zIndex: 10,
-          paddingBottom: 'env(safe-area-inset-bottom)',
-        }}
-      >
+      <main className="mobile-body">{children}</main>
+      <nav className="mobile-tabbar">
         {TABS.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
             className={({ isActive }) => (isActive ? 'mobile-tab active' : 'mobile-tab')}
-            style={{
-              flex: 1,
-              textAlign: 'center',
-              padding: '8px 0 6px',
-              fontSize: 11,
-              color: 'var(--text-2)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              alignItems: 'center',
-            }}
           >
-            <span style={{ fontSize: 18 }}>{t.icon}</span>
+            <span className="tab-icon">{t.icon}</span>
             {t.label}
           </NavLink>
         ))}

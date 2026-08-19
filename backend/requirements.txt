@@ -5,12 +5,16 @@ pydantic==2.10.4
 pydantic-settings==2.7.0
 PyJWT==2.10.1
 passlib[bcrypt]==1.7.4
-bcrypt==3.2.2
+bcrypt>=4.0.1
 python-multipart==0.0.20
-chromadb==0.5.23
-sentence-transformers==3.3.1
+jieba==0.42.1
 pypdf2==3.0.1
 python-docx==1.1.2
 reportlab==4.2.5
 httpx==0.28.1
-（内容由AI生成，仅供参考）
+alembic==1.19.1
+# PostgreSQL 驱动（生产环境）
+psycopg2-binary==2.9.12
+# Optional: uncomment for embedding-based semantic search (requires ~1.5GB)
+# chromadb==0.5.23
+# sentence-transformers==3.3.1

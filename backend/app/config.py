@@ -10,19 +10,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # backend/
 class Settings(BaseSettings):
     APP_NAME: str = "AI实操避错系统"
     API_V1_PREFIX: str = "/api/v1"
-    DEBUG: bool = True
+    DEBUG: bool = False
 
-    # 数据库（SQLite，启动时自动建表）
+    # 服务绑定（由 start.py 读取；容器部署覆盖为 0.0.0.0 / 8000）
+    HOST: str = "127.0.0.1"
+    PORT: int = 8001
+
+    # 数据库：默认 SQLite（开发方便），生产用 PostgreSQL 通过环境变量覆盖：
+    #   DATABASE_URL=postgresql://user:pass@host:5432/dbname
     DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'ai_avoid_error.db'}"
 
-    # JWT
-    SECRET_KEY: str = "chy07-secret-key-change-in-production"
+    # JWT（生产环境必须通过环境变量 SECRET_KEY 设置）
+    SECRET_KEY: str = "chy07-dev-only-key-DO-NOT-USE-IN-PRODUCTION"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 天
 
     # Ollama 本地大模型
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "qwen2.5:7b"
+    # 活跃模型（B1）：管理员可在运行时切换，无需改代码/重启。
+    # 启动时若 data/ollama_runtime.json 记录了上次的选型，则覆盖此默认值（见文件末尾）。
+    OLLAMA_MODEL: str = "qwen2.5:3b"
+    # 可选模型档位（B1）：供前端「升级路径」展示与一键切换；想加更多档位改这里或环境变量 OLLAMA_MODELS（逗号分隔）。
+    OLLAMA_MODELS: list = ["qwen2.5:3b", "qwen2.5:7b", "qwen2.5:14b", "llama3.1:8b", "llama3.1:70b"]
+    # Ollama 生成自愈冷却（B2，秒）：探测不可用时进入冷却期，期间快速降级为规则引擎；
+    # 冷却一过自动重试，从而 Ollama 中途恢复后无需重启后端即自动重启用 AI。
+    OLLAMA_RETRY_COOLDOWN: float = 10.0
 
     # Chroma 向量库
     CHROMA_PERSIST_DIR: str = str(BASE_DIR / "data" / "chroma")
@@ -37,12 +49,50 @@ class Settings(BaseSettings):
     # 双智能体开关（Ollama 不可用时降级为规则引擎）
     ENABLE_OLLAMA: bool = True
 
+    # LLM 旁白（仿真叙事）开关：默认开启，由规则引擎判定 verdict 后让本地模型润色文案。
+    # 若关闭，则沙盘/扫描旁白一律使用确定性规则文案（零幻觉，完全离线可读）。
+    # 即使开启，actor 输出也会经 _ground_actor_reply 约束：编造条款/离题时回退规则文案。
+    ENABLE_LLM_NARRATIVE: bool = True
+
+    # 日志
+    LOG_LEVEL: str = "INFO"
+    LOG_DIR: str = str(BASE_DIR / "logs")
+    LOG_MAX_BYTES: int = 10 * 1024 * 1024
+    LOG_BACKUPS: int = 5
+
+    # 备份目录
+    BACKUP_DIR: str = str(BASE_DIR / "data" / "backups")
+
+    # 速率限制开关（测试/排查时可关闭）
+    RATE_LIMIT_ENABLED: bool = True
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
 
 
 settings = Settings()
+
+# B1：启动时读取运行时模型选择（管理员在界面切换并持久化到 data/ollama_runtime.json），
+# 覆盖 OLLAMA_MODEL 默认值，使切换在重启后仍生效。读不到/损坏则回退默认，不影响启动。
+try:
+    _rt_model_path = BASE_DIR / "data" / "ollama_runtime.json"
+    if _rt_model_path.exists():
+        import json as _json
+        _rt_model = _json.loads(_rt_model_path.read_text(encoding="utf-8")).get("model")
+        if isinstance(_rt_model, str) and _rt_model:
+            settings.OLLAMA_MODEL = _rt_model
+except Exception:
+    pass
+
+# 生产环境安全检查：非 DEBUG 模式下必须修改默认密钥
+if not settings.DEBUG and settings.SECRET_KEY.startswith("chy07-dev-only"):
+    import warnings
+    warnings.warn(
+        "SECRET_KEY 仍为开发默认值，生产环境请通过环境变量 SECRET_KEY 设置随机密钥！",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
 # 确保必要目录存在
 for _d in (settings.CHROMA_PERSIST_DIR, settings.UPLOAD_DIR, settings.REPORT_DIR):

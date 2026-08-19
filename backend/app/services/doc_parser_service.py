@@ -14,7 +14,10 @@ def extract_text(file_path: str) -> str:
     """按扩展名抽取文档纯文本。"""
     suffix = Path(file_path).suffix.lower()
     if suffix == ".pdf":
-        from pypdf2 import PdfReader
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            from pypdf import PdfReader
         reader = PdfReader(file_path)
         return "\n".join(page.extract_text() or "" for page in reader.pages)
     if suffix in (".docx", ".doc"):

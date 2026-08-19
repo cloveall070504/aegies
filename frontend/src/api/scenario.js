@@ -1,8 +1,13 @@
 import client from './client'
 
-export const inferScenario = (behavior, sceneType) =>
-  client.post('/scenario/infer', { behavior, scene_type: sceneType })
+// sceneCode 优先，sceneType 兜底
+export const inferScenario = (behavior, sceneType, sceneCode) =>
+  client.post('/scenario/infer', { behavior, scene_type: sceneType || 'experiment', scene_code: sceneCode || '' })
 
 export const getRecords = (params) => client.get('/scenario/records', { params })
-export const getScenes = () => client.get('/scene/list')
+
+// category: experiment|空=全部，按主题过滤场景列表
+export const getScenes = (category) =>
+  client.get('/scene/list', { params: category ? { category } : {} })
+
 export const scanScene = (sceneId, params) => client.get(`/scene/${sceneId}/scan`, { params })

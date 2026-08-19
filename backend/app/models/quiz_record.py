@@ -10,6 +10,7 @@ class QuizRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True, nullable=False)
     quiz_id = Column(String(64), default="quiz_001")
+    scene_code = Column(String(64), default="")           # 关联场景代码
     score = Column(Integer, default=0)              # 0-100
     total = Column(Integer, default=0)
     correct = Column(Integer, default=0)
@@ -21,6 +22,7 @@ class QuizRecord(Base):
             "id": self.id,
             "user_id": self.user_id,
             "quiz_id": self.quiz_id,
+            "scene_code": self.scene_code or "",
             "score": self.score,
             "total": self.total,
             "correct": self.correct,

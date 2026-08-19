@@ -15,7 +15,13 @@ class RiskPoint(Base):
     weight = Column(Float, default=0.5)                     # 规范权重 0-1
     clause_ref = Column(String(512), default="")            # 条款溯源（原文引用）
     vector_id = Column(String(128), default="")
+
+    # ===== 反馈闭环字段（A1：教师可编辑/审核风险点）=====
+    owner_id = Column(Integer, index=True, nullable=True)  # 创建者（教师）；种子数据 owner_id=None
+    source = Column(String(16), default="seed")             # seed=内置种子 / custom=教师自建
+    reviewed = Column(Integer, default=1)                   # 0=待审核 1=已通过 2=已驳回
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     def to_dict(self, brief: bool = False):
         data = {
@@ -27,6 +33,9 @@ class RiskPoint(Base):
             "weight": self.weight,
             "clause_ref": self.clause_ref,
             "vector_id": self.vector_id,
+            "owner_id": self.owner_id,
+            "source": self.source,
+            "reviewed": self.reviewed,
         }
         if brief:
             data.pop("clause_ref", None)

@@ -31,6 +31,24 @@ def get_current_user(
     return user
 
 
+def get_current_user_optional(
+    token: str = "",
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """宽松鉴权：优先 Authorization 头，回退到 token 查询参数（用于 <a> 下载链接）。"""
+    raw = credentials.credentials if credentials else token
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供认证令牌")
+    payload = decode_token(raw)
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="令牌无效或已过期")
+    user = db.get(User, int(payload.get("sub", 0)))
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
+    return user
+
+
 def require_roles(*roles: str):
     """角色权限控制依赖工厂。"""
 

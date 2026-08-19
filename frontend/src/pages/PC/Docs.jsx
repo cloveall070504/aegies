@@ -1,91 +1,80 @@
-import { useEffect, useRef, useState } from 'react'
-import { getDocRisks, listDocs, uploadDoc } from '../../api'
 import RiskTag from '../../components/RiskTag'
 import { formatTime } from '../../utils/format'
+import { useSceneName } from '../../hooks/useSceneType'
+import { useDocs } from '../../hooks/useDocs'
+import { useAuth } from '../../hooks/useAuth'
 
 export default function Docs() {
-  const [docs, setDocs] = useState([])
-  const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState('')
-  const [riskDocId, setRiskDocId] = useState(null)
-  const [risks, setRisks] = useState([])
-  const fileRef = useRef(null)
+  const sceneName = useSceneName()
+  const { user } = useAuth()
+  const { docs, uploading, error, riskDocId, risks, fileRef, onUpload, showRisks, onDelete } = useDocs()
 
-  const load = () => {
-    listDocs().then(setDocs).catch((e) => setError(e.message))
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
-
-  const onUpload = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    setError('')
-    try {
-      const data = await uploadDoc(file)
-      load()
-      setRiskDocId(data.doc_id)
-      setRisks(data.risks || [])
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setUploading(false)
-      if (fileRef.current) fileRef.current.value = ''
-    }
-  }
-
-  const showRisks = async (docId) => {
-    try {
-      const data = await getDocRisks(docId)
-      setRiskDocId(docId)
-      setRisks(data.risks || [])
-    } catch (err) {
-      setError(err.message)
-    }
-  }
+  // 仅教师 / 管理员 / 安全员，或上传者本人可删除
+  const canDelete = (d) => ['teacher', 'admin', 'safety'].includes(user?.role) || d.uploaded_by === user?.id
 
   return (
     <div>
       <h1 className="page-title">文档上传与知识库构建</h1>
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.txt,.md" onChange={onUpload} />
+          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.txt,.md" onChange={onUpload} style={{ display: 'none' }} />
           <button className="btn" disabled={uploading} onClick={() => fileRef.current?.click()}>
-            {uploading ? '上传解析中…' : '上传规范文档'}
+            {uploading ? <><span className="spinner" /> 上传解析中…</> : '📄 上传规范文档'}
           </button>
-          <span className="muted">支持 PDF / Word / TXT，AI 自动抽取风险点</span>
+          <span className="muted">支持 PDF / Word / TXT，AI 自动抽取风险点 · 归属场景：<strong>{sceneName}</strong></span>
         </div>
-        {error && <div style={{ color: 'var(--red)', marginTop: 8, fontSize: 13 }}>{error}</div>}
+        {error && <div className="alert alert-error" style={{ marginTop: 10 }}>{error}</div>}
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', marginBottom: 16 }}>
         {docs.map((d) => (
           <div className="card" key={d.id} onClick={() => showRisks(d.id)} style={{ cursor: 'pointer' }}>
-            <strong style={{ fontSize: 14 }}>{d.title}</strong>
-            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-              {d.scene_type} · {d.status} · {formatTime(d.created_at)}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span className="step-badge">📄</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ fontSize: 14, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</strong>
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                  {d.scene_type} · {d.status} · {formatTime(d.created_at)}
+                </div>
+              </div>
+              {canDelete(d) && (
+                <button
+                  className="btn-outline"
+                  style={{ flexShrink: 0, padding: '4px 10px', fontSize: 12 }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (window.confirm(`确认删除文档「${d.title}」？该操作不可恢复，且会同时移除其抽取的风险点。`)) {
+                      onDelete(d.id)
+                    }
+                  }}
+                >
+                  删除
+                </button>
+              )}
             </div>
           </div>
         ))}
-        {docs.length === 0 && <div className="muted">暂无文档，上传规范文档后自动抽取风险点</div>}
+        {docs.length === 0 && (
+          <div className="card empty"><div className="empty-icon">📄</div><div className="empty-text">暂无文档，上传规范文档后自动抽取风险点</div></div>
+        )}
       </div>
 
       {riskDocId !== null && (
         <div className="card">
-          <h3 style={{ margin: '0 0 12px' }}>风险抽取结果（文档 #{riskDocId}）</h3>
-          {risks.length === 0 && <div className="muted">该文档尚未抽取到风险点</div>}
-          {risks.map((r) => (
-            <div key={r.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                <RiskTag level={r.level} />
-                <span className="muted" style={{ fontSize: 12 }}>条款：{r.clause_ref}</span>
+          <h3 className="section-title"><span className="dot" />风险抽取结果（#{riskDocId}）</h3>
+          {risks.length === 0 ? (
+            <div className="muted" style={{ marginTop: 6 }}>该文档尚未抽取到风险点</div>
+          ) : (
+            risks.slice(0, 10).map((r) => (
+              <div key={r.id} className="info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4, padding: '8px 0' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <RiskTag level={r.level} />
+                  <span className="muted" style={{ fontSize: 12 }}>条款：{r.clause_ref}</span>
+                </div>
+                <div style={{ fontSize: 13 }}>{r.description}</div>
               </div>
-              <div style={{ fontSize: 14 }}>{r.description}</div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
     </div>

@@ -74,3 +74,25 @@ def doc_risks(doc_id: int, user: User = Depends(get_current_user), db: Session =
         return fail("文档不存在", code=404)
     risks = db.query(RiskPoint).filter(RiskPoint.doc_id == doc_id).all()
     return ok({"doc_id": doc_id, "risks": [r.to_dict() for r in risks]})
+
+
+@router.delete("/{doc_id}")
+def delete_doc(doc_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    doc = db.get(Document, doc_id)
+    if not doc:
+        return fail("文档不存在", code=404)
+    # 权限：教师 / 安全员 / 管理员 或 上传者本人
+    if user.role not in ("teacher", "admin", "safety") and doc.uploaded_by != user.id:
+        return fail("无权限删除该文档", code=403)
+    # 删除关联抽取的风险点
+    db.query(RiskPoint).filter(RiskPoint.doc_id == doc_id).delete()
+    # 删除磁盘上的原始文件
+    try:
+        p = Path(doc.file_path)
+        if p.exists():
+            p.unlink()
+    except OSError:
+        pass
+    db.delete(doc)
+    db.commit()
+    return ok({"doc_id": doc_id, "deleted": True})

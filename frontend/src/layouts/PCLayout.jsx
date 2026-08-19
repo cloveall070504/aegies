@@ -1,21 +1,68 @@
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import ThemeToggle from '../components/ThemeToggle'
+import SceneSelector from '../components/SceneSelector'
+import EngineModeBadge from '../components/EngineModeBadge'
 import useAuthStore from '../store/authStore'
+import useThemeStore from '../store/themeStore'
+import { useSceneName } from '../hooks/useSceneType'
 
-const MENU = [
-  { to: '/dashboard', label: '驾驶舱', icon: '📊' },
-  { to: '/scenario', label: '场景推演', icon: '🧪' },
-  { to: '/scan', label: '风险扫描', icon: '🔍' },
-  { to: '/profile', label: '个人画像', icon: '👤' },
-  { to: '/quiz', label: '自测考试', icon: '📝' },
+const ROLE_META = {
+  admin: { label: '管理员', color: '#f59e0b', bg: 'rgba(245,158,11,0.16)', home: '系统管理总览' },
+  teacher: { label: '实验教师', color: '#3b82f6', bg: 'rgba(59,130,246,0.16)', home: '教学工作台' },
+  student: { label: '学生', color: '#10b981', bg: 'rgba(16,185,129,0.16)', home: '我的学习主页' },
+}
+
+// 学生：纯学习者视角（9 项，全部为"学/练/看"）
+const MENU_STUDENT = [
+  { to: '/dashboard', label: '我的主页', icon: '🏠' },
+  { to: '/sandbox', label: '避错沙盘', icon: '🧪' },
+  { to: '/assignments', label: '我的作业', icon: '📋' },
   { to: '/cases', label: '案例库', icon: '📚' },
+  { to: '/profile', label: '个人画像', icon: '👤' },
+  { to: '/training', label: '学习中心', icon: '🎓' },
   { to: '/docs', label: '文档管理', icon: '📄' },
-  { to: '/admin', label: '管理后台', icon: '🗂️' },
+]
+
+// 教师：纯教学管理者视角（8 项，全部为"建/管/批"，不重复学生的练/学）
+const MENU_TEACHER = [
+  { to: '/dashboard', label: '教学工作台', icon: '🏠' },
+  { to: '/cases-manage', label: '案例管理', icon: '📝' },
+  { to: '/risk-points', label: '风险点管理', icon: '📌' },
+  { to: '/quiz-manage', label: '题库管理', icon: '🧰' },
+  { to: '/assignments', label: '作业布置', icon: '📋' },
+  { to: '/students', label: '学员管理', icon: '👥' },
+  { to: '/review', label: '推演批改', icon: '🔍' },
+  { to: '/training-report', label: '培训报告', icon: '📑' },
+  { to: '/admin', label: '组织风险画像', icon: '🗂️' },
+]
+
+// 管理员：纯系统治理者视角（7 项，聚焦用户/配置/总览）
+const MENU_ADMIN = [
+  { to: '/dashboard', label: '系统总览', icon: '🏠' },
+  { to: '/users', label: '用户管理', icon: '👤' },
+  { to: '/cases-manage', label: '案例总库', icon: '📝' },
+  { to: '/risk-points', label: '风险点总库', icon: '📌' },
+  { to: '/settings', label: '系统设置', icon: '⚙️' },
+  { to: '/system-info', label: '系统信息', icon: '📡' },
+  { to: '/training-report', label: '培训报告', icon: '📑' },
+  { to: '/admin', label: '组织风险画像', icon: '🗂️' },
 ]
 
 export default function PCLayout({ children }) {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const theme = useThemeStore((s) => s.theme)
+  const role = user?.role || 'student'
+  const roleMeta = ROLE_META[role] || ROLE_META.student
+  const sceneName = useSceneName()
+  const [clock, setClock] = useState(() => new Date())
+  useEffect(() => {
+    const t = setInterval(() => setClock(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  const menu = role === 'teacher' ? MENU_TEACHER : role === 'admin' ? MENU_ADMIN : MENU_STUDENT
+  const sectionLabel = role === 'teacher' ? '👨‍🏫 教学管理者专区' : role === 'admin' ? '🛡️ 系统治理专区' : '🎓 学习者专区'
 
   const onLogout = () => {
     logout()
@@ -24,63 +71,98 @@ export default function PCLayout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <aside
-        style={{
-          width: 220,
-          flexShrink: 0,
-          background: 'var(--card)',
-          borderRight: '1px solid var(--border)',
-          padding: '16px 12px',
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <div style={{ fontSize: 18, fontWeight: 800, padding: '8px 12px 16px' }}>
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <span className="sidebar-logo-icon">⚡</span>
           AI实操避错系统
         </div>
+
+        {/* 当前身份（显眼角色徽标） */}
+        <div
+          style={{
+            margin: '4px 14px 10px',
+            padding: '8px 12px',
+            borderRadius: 12,
+            background: roleMeta.bg,
+            border: `1px solid ${roleMeta.color}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: roleMeta.color,
+              background: '#fff',
+              borderRadius: 999,
+              padding: '3px 10px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {roleMeta.label}
+          </span>
+          <div style={{ minWidth: 0, lineHeight: 1.2 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.display_name || user?.username}
+            </div>
+            <div className="muted" style={{ fontSize: 11 }}>{user?.department || '未分组'}</div>
+          </div>
+        </div>
+
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {MENU.map((m) => (
+          {menu.map((m) => (
             <NavLink
               key={m.to}
               to={m.to}
               className={({ isActive }) => (isActive ? 'menu-item active' : 'menu-item')}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 8,
-                color: 'var(--text)',
-                fontSize: 14,
-                display: 'flex',
-                gap: 10,
-                alignItems: 'center',
-              }}
             >
               <span>{m.icon}</span>
               {m.label}
             </NavLink>
           ))}
         </nav>
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
-            <span style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
+        <div className="sidebar-foot">
+          <EngineModeBadge variant="chip" />
+          <button
+            className="theme-toggle"
+            onClick={() => useThemeStore.getState().toggleTheme()}
+            title="切换暗色 / 浅色"
+          >
+            <span className="theme-toggle__icon">{theme === 'dark' ? '🌙' : '☀️'}</span>
+            <span className="theme-toggle__label mono">
+              {theme === 'dark' ? 'DARK' : 'LIGHT'}
+            </span>
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px' }}>
+            <span className="avatar">
               {user?.display_name?.[0] || user?.username?.[0] || 'U'}
             </span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div className="sidebar-user-name">
                 {user?.display_name || user?.username}
               </div>
-              <div className="muted" style={{ fontSize: 11 }}>{user?.role} · {user?.department}</div>
+              <div className="muted" style={{ fontSize: 11 }}>{sectionLabel}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, padding: '0 12px' }}>
-            <ThemeToggle />
-            <button className="btn-outline" onClick={onLogout} style={{ flex: 1 }}>退出</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 12px 12px' }}>
+            <SceneSelector compact />
+            <button className="btn-outline" onClick={onLogout} style={{ width: '100%' }}>退出登录</button>
           </div>
         </div>
       </aside>
-      <main style={{ flex: 1, padding: 24, minWidth: 0 }}>{children}</main>
+      <main className="pc-main">
+        <div className="hud-bar">
+          <span className="hud-bar__status"><span className="hud-bar__dot" />SYSTEM ONLINE</span>
+          <span className="hud-bar__sep" />
+          <span className="hud-bar__mod">反向RAG · 双智能体校验引擎</span>
+          <span className="hud-bar__spacer" />
+          <span className="hud-bar__scene">场景 · {sceneName || '通用'}</span>
+          <span className="hud-bar__clock mono">{clock.toLocaleTimeString('zh-CN', { hour12: false })}</span>
+        </div>
+        {children}
+      </main>
     </div>
   )
 }

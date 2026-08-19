@@ -9,15 +9,15 @@ export default function ScoreGauge({ score, size = 140 }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={12} />
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ filter: 'drop-shadow(0 6px 14px rgba(79,70,229,0.18))' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={9} />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
           fill="none"
           stroke={color}
-          strokeWidth={12}
+          strokeWidth={9}
           strokeDasharray={c}
           strokeDashoffset={offset}
           strokeLinecap="round"
@@ -28,14 +28,14 @@ export default function ScoreGauge({ score, size = 140 }) {
           y="50%"
           textAnchor="middle"
           dominantBaseline="central"
-          fontSize={size / 5}
-          fontWeight={700}
+          fontSize={size / 4.4}
+          fontWeight={800}
           fill={color}
         >
           {value}
         </text>
       </svg>
-      <span className="muted">风险分</span>
+      <span className="muted" style={{ fontSize: 12 }}>风险分</span>
     </div>
   )
 }

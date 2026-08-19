@@ -4,11 +4,16 @@ from app.models.document import Document
 from app.models.risk_point import RiskPoint
 from app.models.operation_record import OperationRecord
 from app.models.quiz_record import QuizRecord
+from app.models.quiz_question import QuizQuestion
 from app.models.personal_profile import PersonalProfile
 from app.models.case_entry import CaseEntry
 from app.models.org_profile import OrgProfile
 from app.models.report import Report
 from app.models.prompt_template import PromptTemplate
+from app.models.scene import Scene
+from app.models.scene_step import SceneStep
+from app.models.training import TrainingRecord
+from app.models.assignment import Assignment, AssignmentProgress
 
 __all__ = [
     "User",
@@ -16,9 +21,15 @@ __all__ = [
     "RiskPoint",
     "OperationRecord",
     "QuizRecord",
+    "QuizQuestion",
     "PersonalProfile",
     "CaseEntry",
     "OrgProfile",
     "Report",
     "PromptTemplate",
+    "Scene",
+    "SceneStep",
+    "TrainingRecord",
+    "Assignment",
+    "AssignmentProgress",
 ]

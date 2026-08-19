@@ -1,0 +1,63 @@
+# AI实操避错系统 —— 一键编排（后端 + 前端 + PostgreSQL）
+# 用法：
+#   docker compose up --build
+#   - 前端：  http://localhost:8080  （nginx 反代 /api 到 backend:8000）
+#   - 后端 API：http://localhost:8000/docs
+#   - PostgreSQL：容器内 5432（账号见下方 environment）
+#
+# 生产部署请把所有明文密码改为环境变量 / secrets。
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: avoid_error
+      POSTGRES_USER: avoid_user
+      POSTGRES_PASSWORD: avoid_pass_change_me
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avoid_user -d avoid_error"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # 存活探针：后端无响应时 Docker 会自动重启容器（崩溃自愈）。
+    # 端口须与容器内 PORT（8000）一致；用 Python 标准库探测，避免镜像缺 curl。
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health').status==200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment:
+      DATABASE_URL: postgresql://avoid_user:avoid_pass_change_me@db:5432/avoid_error
+      SECRET_KEY: please_change_this_in_production
+      CORS_ORIGINS: "http://localhost:8080"
+      ENABLE_OLLAMA: "false"
+      # 容器部署：监听所有网卡、端口 8000（由 start.py 读取）
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      LOG_LEVEL: "INFO"
+      # 若部署了 Ollama，可改为 true 并配置 OLLAMA_BASE_URL
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
