@@ -14,6 +14,11 @@ backend/*.db.*.bak
 backend/data/
 !backend/data/.gitkeep
 
+# 本地密钥与环境变量（切勿提交！含 OPENAI_API_KEY 等敏感信息）
+.env
+backend/.env
+.env.local
+
 # 本地备份/虚拟环境副本（非版本控制）
 .venv_bak/
 

@@ -7,6 +7,7 @@
 """
 import asyncio
 import json
+import logging
 import math
 import os
 import re
@@ -19,6 +20,8 @@ import jieba
 import jieba.analyse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger("uvicorn.error")
 
 from app.config import settings
 from app.models.risk_point import RiskPoint
@@ -460,20 +463,31 @@ def reset_ollama_availability():
 
 
 def try_ollama_generate(prompt: str, max_tokens: int = 512) -> str | None:
-    """调用本地 Ollama 生成文本；失败/不可用时返回 None（由调用方降级为规则引擎）。
+    """统一 LLM 生成入口：按 AI_PROVIDER 分派到本地 Ollama 或云端 OpenAI 兼容 API。
 
-    关键可信化改动：
-    - 短超时（connect 3s / read 20s），杜绝未安装 Ollama 时的长连接挂死。
-    - 自愈冷却（B2）：探测失败时仅进入短期冷却，冷却后自动重试，Ollama 恢复即重启用 AI，无需重启后端。
-    - Ollama 只是「解释增强」，无论是否成功，风险判定都以确定性规则引擎为真相源。
+    失败/冷却/未配置均返回 None，由调用方降级为规则引擎（规则引擎是唯一真相源）。
+    函数名对调用方保持不变（agent_service / cases / quiz 等直接调用本函数）。
     """
     global _ollama_unavailable_until
-    if not settings.ENABLE_OLLAMA:
-        return None
+    # 开关判断（与 provider 无关）
+    if settings.AI_PROVIDER == "cloud":
+        if not settings.OPENAI_API_KEY:
+            return None
+    else:
+        if not settings.ENABLE_OLLAMA:
+            return None
     now = time.monotonic()
     if now < _ollama_unavailable_until:
-        # 冷却中：快速降级为规则引擎，避免每次请求都打 Ollama 造成卡顿/挂死。
+        # 冷却中：快速降级为规则引擎，避免每次请求都打外部服务造成卡顿/挂死。
         return None
+    if settings.AI_PROVIDER == "cloud":
+        return _cloud_generate_impl(prompt, max_tokens)
+    return _ollama_generate_impl(prompt, max_tokens)
+
+
+def _ollama_generate_impl(prompt: str, max_tokens: int = 512) -> str | None:
+    """本地 Ollama /api/generate 实现（try_ollama_generate 的 ollama 分支）。"""
+    global _ollama_unavailable_until
     try:
         resp = httpx.post(
             f"{settings.OLLAMA_BASE_URL}/api/generate",
@@ -491,6 +505,51 @@ def try_ollama_generate(prompt: str, max_tokens: int = 512) -> str | None:
         return None
 
 
+def _cloud_generate_impl(prompt: str, max_tokens: int = 512) -> str | None:
+    """云端 OpenAI 兼容 /chat/completions 实现（try_ollama_generate 的 cloud 分支）。
+
+    兼容 DeepSeek / 硅基流动 / 通义 DashScope / OpenAI 等任意 OpenAI 兼容端点。
+    现有的单轮 prompt（已含指令+用户输入）作为 user message 发送；模型仅做「解释增强」，
+    风险判定仍以规则引擎为真相源，模型输出会经 _ground_actor_reply 约束以防幻觉翻案。
+    """
+    global _ollama_unavailable_until
+    try:
+        resp = httpx.post(
+            f"{settings.OPENAI_API_BASE}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": settings.OPENAI_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+                "temperature": 0.3,
+                "stream": False,
+            },
+            timeout=httpx.Timeout(connect=5.0, read=25.0, write=10.0, pool=5.0),
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        text = (
+            data.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+            .strip()
+        )
+        _ollama_unavailable_until = 0.0
+        return text or None
+    except Exception as e:
+        # 非瞬时错误（如 401 密钥无效 / 402 余额不足 / 429 限流）也在此被捕获并降级为规则引擎；
+        # 打印状态码与原因，便于运维从日志快速定位（而非静默返回 None）。
+        _status = getattr(e, "response", None)
+        _code = getattr(_status, "status_code", None)
+        if _code in (401, 402, 403, 429):
+            logger.warning("云端大模型调用失败 http=%s：%s", _code, (getattr(_status, "text", "") or str(e))[:200])
+        _ollama_unavailable_until = time.monotonic() + float(getattr(settings, "OLLAMA_RETRY_COOLDOWN", 10.0))
+        return None
+
+
 # 并发护栏：限制同时打 Ollama 的请求数，避免高并发把 FastAPI 线程池打满
 # （同步端点下 Ollama 调用会占用线程池 worker，无限并发会拖垮整个服务乃至 /health）。
 _ollama_concurrency = asyncio.Semaphore(int(os.getenv("OLLAMA_MAX_CONCURRENCY", "4")))
@@ -502,8 +561,12 @@ async def try_ollama_generate_async(prompt: str, max_tokens: int = 512, timeout:
     通过信号量限制并发、外层 wait_for 兜底超时，避免阻塞事件循环 / 占满请求线程池。
     失败、超时或并发超限均返回 None，由调用方（规则引擎）降级，与同步版语义一致。
     """
-    if not settings.ENABLE_OLLAMA:
-        return None
+    if settings.AI_PROVIDER == "cloud":
+        if not settings.OPENAI_API_KEY:
+            return None
+    else:
+        if not settings.ENABLE_OLLAMA:
+            return None
     async with _ollama_concurrency:
         try:
             return await asyncio.wait_for(
@@ -532,10 +595,13 @@ def _status_store() -> "CacheStore":
 
 
 def list_ollama_model_names() -> list:
-    """返回本地已拉取的 Ollama 模型名列表（用于前端判断候选模型是否已安装）。
+    """返回已配置的 LLM 模型名列表（用于前端判断候选模型是否已就绪）。
 
-    不可用时（关闭/服务未起/无网络）返回空列表，不抛异常——这是只读的辅助探测。
+    cloud provider 下返回当前云端模型名（已配密钥即为就绪）；ollama provider 下返回本地已拉取模型。
+    不可用时返回空列表，不抛异常——这是只读的辅助探测。
     """
+    if settings.AI_PROVIDER == "cloud":
+        return [settings.OPENAI_MODEL] if settings.OPENAI_API_KEY else []
     if not settings.ENABLE_OLLAMA:
         return []
     try:
@@ -549,8 +615,10 @@ def list_ollama_model_names() -> list:
         return []
 
 
-def _probe_ollama_status() -> dict:
-    """真正去打 Ollama 服务，区分真实状态（见 ollama_status 缓存封装）。"""
+def _probe_engine_status() -> dict:
+    """真正去探测当前 provider 的引擎状态（见 ollama_status 缓存封装）。"""
+    if settings.AI_PROVIDER == "cloud":
+        return _probe_cloud_status()
     if not settings.ENABLE_OLLAMA:
         return {
             "configured": False,
@@ -567,11 +635,15 @@ def _probe_ollama_status() -> dict:
         )
         resp.raise_for_status()
         models = [m.get("name", "") for m in resp.json().get("models", [])]
-        # 精确匹配或忽略标签的家族匹配（如 qwen2.5:7b / qwen2.5）
-        family = settings.OLLAMA_MODEL.split(":")[0]
-        present = settings.OLLAMA_MODEL in models or any(
-            m.split(":")[0] == family for m in models
-        )
+        configured = settings.OLLAMA_MODEL
+        if configured in models:
+            present = True
+        elif ":" not in configured:
+            # 配置项只写了家族名（如 qwen2.5），允许匹配同家族任意 tag
+            present = any(m.split(":")[0] == configured for m in models)
+        else:
+            # 配置了具体 tag（如 qwen2.5:14b）则必须精确存在，不能被同家族 3b 误匹配
+            present = False
         if present:
             return {
                 "configured": True,
@@ -606,6 +678,52 @@ def _probe_ollama_status() -> dict:
         }
 
 
+def _probe_cloud_status() -> dict:
+    """探测云端 OpenAI 兼容端点的真实状态（见 ollama_status 缓存封装）。"""
+    key = settings.OPENAI_API_KEY
+    model = settings.OPENAI_MODEL
+    if not key:
+        return {
+            "configured": False,
+            "reachable": False,
+            "model": model,
+            "model_present": False,
+            "mode": "rule",
+            "reason": "未配置 OPENAI_API_KEY，云端 AI 增强模式未启用。请在 backend/.env 填入密钥后重启后端。",
+        }
+    # 轻量可达性校验：GET {base}/models（OpenAI 兼容端点均支持）
+    try:
+        resp = httpx.get(
+            f"{settings.OPENAI_API_BASE}/models",
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=httpx.Timeout(connect=3.0, read=5.0, write=5.0, pool=3.0),
+        )
+        # 2xx/401/404 等都代表"服务可达"，仅连接级错误视为不可达
+        reachable = resp.status_code < 500
+    except Exception:
+        reachable = False
+    if not reachable:
+        return {
+            "configured": True,
+            "reachable": False,
+            "model": model,
+            "model_present": False,
+            "mode": "rule",
+            "reason": (
+                f"云端大模型已配置密钥，但 {settings.OPENAI_API_BASE} 不可达"
+                f"（网络异常或地址错误）。请检查 OPENAI_API_BASE 配置。"
+            ),
+        }
+    return {
+        "configured": True,
+        "reachable": True,
+        "model": model,
+        "model_present": True,
+        "mode": "ai",
+        "reason": f"云端大模型已就绪（{model}），AI 增强模式生效。",
+    }
+
+
 def ollama_status() -> dict:
     """探测 Ollama 真实状态，作为「引擎模式」的唯一真相源（带 15s 缓存）。
 
@@ -623,6 +741,6 @@ def ollama_status() -> dict:
     cached = store.get("ollama_status")
     if cached is not None:
         return cached
-    result = _probe_ollama_status()
+    result = _probe_engine_status()
     store.set("ollama_status", result, ttl=_OLLAMA_STATUS_TTL)
     return result

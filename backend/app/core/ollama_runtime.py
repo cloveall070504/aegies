@@ -39,12 +39,27 @@ def _write_runtime(data: dict) -> None:
         pass
 
 
+def _clear_engine_cache() -> None:
+    """让引擎状态缓存与生成冷却失效，新模型立即被探测/使用（B2 自愈配合）。"""
+    try:
+        from app.services import rag_service
+        rag_service.reset_ollama_availability()
+        rag_service._status_store().delete("ollama_status")
+    except Exception:
+        pass
+
+
 def get_active_model() -> str:
+    if settings.AI_PROVIDER == "cloud":
+        return _read_runtime().get("model") or settings.OPENAI_MODEL
     return _read_runtime().get("model") or settings.OLLAMA_MODEL
 
 
 def candidate_models() -> list:
     """候选切换列表：默认档位 + 当前活跃模型（若不在默认表中也补上，避免丢失）。"""
+    if settings.AI_PROVIDER == "cloud":
+        active = get_active_model()
+        return [active] if active else [settings.OPENAI_MODEL]
     cands = list(settings.OLLAMA_MODELS)
     active = get_active_model()
     if active not in cands:
@@ -59,24 +74,31 @@ def _is_valid_model_name(model: str) -> bool:
 def set_active_model(model: str) -> str:
     """运行时切换活跃模型：写文件 + 改 settings + 清状态缓存/冷却，立即生效。
 
-    返回最终生效的模型名。非法模型名抛 ValueError（由接口层转 400）。
+    返回最终生效的模型名。ollama provider 下非法模型名抛 ValueError（由接口层转 400）；
+    cloud provider 下模型名（如 deepseek-chat）不受 <family>:<tag> 限制。
     """
+    if settings.AI_PROVIDER == "cloud":
+        settings.OPENAI_MODEL = model
+        _write_runtime({"model": model})
+        _clear_engine_cache()
+        return model
     if not _is_valid_model_name(model):
         raise ValueError("非法模型名：需形如 <family>:<tag>（如 qwen2.5:7b）")
     settings.OLLAMA_MODEL = model
     _write_runtime({"model": model})
-    # 让引擎状态缓存与生成冷却失效，新模型立即被探测/使用（B2 自愈配合）。
-    try:
-        from app.services import rag_service
-        rag_service.reset_ollama_availability()
-        rag_service._status_store().delete("ollama_status")
-    except Exception:
-        pass
+    _clear_engine_cache()
     return model
 
 
 def list_models() -> list:
     """返回候选模型列表（含档位元数据 + 是否已本地安装）。"""
+    if settings.AI_PROVIDER == "cloud":
+        active = get_active_model()
+        return [{
+            "name": active, "active": True, "present": True,
+            "params": "云端", "min_ram": "—", "min_vram": "—",
+            "note": f"云端模型 {active}（OpenAI 兼容端点 {settings.OPENAI_API_BASE}）",
+        }]
     from app.services import rag_service
     local = set(rag_service.list_ollama_model_names())
     active = get_active_model()

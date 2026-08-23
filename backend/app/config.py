@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     # 冷却一过自动重试，从而 Ollama 中途恢复后无需重启后端即自动重启用 AI。
     OLLAMA_RETRY_COOLDOWN: float = 10.0
 
+    # 云端大模型（OpenAI 兼容）：当 AI_PROVIDER=cloud 时，走云端 API 而非本地 Ollama。
+    # 支持任意 OpenAI 兼容端点（DeepSeek / 硅基流动 SiliconFlow / 通义 DashScope / OpenAI 等）。
+    # 密钥通过环境变量 OPENAI_API_KEY 注入（写入 backend/.env，已被 gitignore，不进仓库）。
+    AI_PROVIDER: str = "ollama"                      # ollama | cloud
+    OPENAI_API_KEY: str = ""
+    OPENAI_API_BASE: str = "https://api.deepseek.com/v1"   # 默认 DeepSeek（OpenAI 兼容）
+    OPENAI_MODEL: str = "deepseek-chat"
+
     # Chroma 向量库
     CHROMA_PERSIST_DIR: str = str(BASE_DIR / "data" / "chroma")
     EMBEDDING_MODEL: str = "BAAI/bge-small-zh-v1.5"
@@ -81,7 +89,13 @@ try:
         import json as _json
         _rt_model = _json.loads(_rt_model_path.read_text(encoding="utf-8")).get("model")
         if isinstance(_rt_model, str) and _rt_model:
-            settings.OLLAMA_MODEL = _rt_model
+            if settings.AI_PROVIDER == "cloud":
+                # 仅当运行时模型名是「云端格式」（不含 ':'，如 deepseek-chat）才覆盖 OPENAI_MODEL，
+                # 避免 ollama 残留的 <family>:<tag>（如 qwen2.5:3b）污染云端模型名导致调用失败。
+                if ":" not in _rt_model:
+                    settings.OPENAI_MODEL = _rt_model
+            else:
+                settings.OLLAMA_MODEL = _rt_model
 except Exception:
     pass
 
