@@ -511,43 +511,70 @@ def _cloud_generate_impl(prompt: str, max_tokens: int = 512) -> str | None:
     兼容 DeepSeek / 硅基流动 / 通义 DashScope / OpenAI 等任意 OpenAI 兼容端点。
     现有的单轮 prompt（已含指令+用户输入）作为 user message 发送；模型仅做「解释增强」，
     风险判定仍以规则引擎为真相源，模型输出会经 _ground_actor_reply 约束以防幻觉翻案。
+
+    云端网络偶发抖动会导致调用抛异常（连接重置/5xx/读取中断等），此类瞬时错误重试通常
+    即可成功，因此这里做最多 2 次重试；所有失败都会打 warning 日志，不再静默吞掉。
     """
     global _ollama_unavailable_until
-    try:
-        resp = httpx.post(
-            f"{settings.OPENAI_API_BASE}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": settings.OPENAI_MODEL,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": max_tokens,
-                "temperature": 0.3,
-                "stream": False,
-            },
-            timeout=httpx.Timeout(connect=5.0, read=25.0, write=10.0, pool=5.0),
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        text = (
-            data.get("choices", [{}])[0]
-            .get("message", {})
-            .get("content", "")
-            .strip()
-        )
-        _ollama_unavailable_until = 0.0
-        return text or None
-    except Exception as e:
-        # 非瞬时错误（如 401 密钥无效 / 402 余额不足 / 429 限流）也在此被捕获并降级为规则引擎；
-        # 打印状态码与原因，便于运维从日志快速定位（而非静默返回 None）。
-        _status = getattr(e, "response", None)
-        _code = getattr(_status, "status_code", None)
-        if _code in (401, 402, 403, 429):
-            logger.warning("云端大模型调用失败 http=%s：%s", _code, (getattr(_status, "text", "") or str(e))[:200])
-        _ollama_unavailable_until = time.monotonic() + float(getattr(settings, "OLLAMA_RETRY_COOLDOWN", 10.0))
-        return None
+    last_status_text = ""
+    max_retries = 2
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = httpx.post(
+                f"{settings.OPENAI_API_BASE}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.OPENAI_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                    "temperature": 0.3,
+                    "stream": False,
+                },
+                timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            text = (
+                data.get("choices", [{}])[0]
+                .get("message", {})
+                .get("content", "")
+                .strip()
+            )
+            # 千问偶发返回 HTTP 200 但 content 为空（瞬时抖动），视为失败并重试，
+            # 通常重试一次即可拿到正常内容；否则直接降级为规则引擎。
+            if not text:
+                if attempt < max_retries:
+                    logger.warning("云端大模型第 %d 次返回空内容，重试中…", attempt)
+                    time.sleep(0.8 * attempt)
+                    continue
+                logger.warning("云端大模型调用失败：连续 %d 次返回空内容", max_retries)
+                break
+            _ollama_unavailable_until = 0.0
+            return text
+        except Exception as e:  # noqa: BLE001 - 云端瞬时错误需重试，最终失败才降级
+            _status = getattr(e, "response", None)
+            _code = getattr(_status, "status_code", None)
+            last_status_text = (getattr(_status, "text", "") or str(e))[:200]
+            # 鉴权/配额类错误重试无意义，直接判定失败
+            if _code in (401, 402, 403, 429):
+                logger.warning("云端大模型调用失败 http=%s：%s", _code, last_status_text)
+                break
+            if attempt < max_retries:
+                logger.warning(
+                    "云端大模型第 %d 次调用异常（%s），%s后重试…",
+                    attempt, type(e).__name__, f"{0.8 * attempt:.1f}s",
+                )
+                time.sleep(0.8 * attempt)
+            else:
+                logger.warning(
+                    "云端大模型调用失败（已重试 %d 次）：%s", max_retries - 1, last_status_text
+                )
+    _ollama_unavailable_until = time.monotonic() + float(getattr(settings, "OLLAMA_RETRY_COOLDOWN", 10.0))
+    return None
+
 
 
 # 并发护栏：限制同时打 Ollama 的请求数，避免高并发把 FastAPI 线程池打满
@@ -555,7 +582,7 @@ def _cloud_generate_impl(prompt: str, max_tokens: int = 512) -> str | None:
 _ollama_concurrency = asyncio.Semaphore(int(os.getenv("OLLAMA_MAX_CONCURRENCY", "4")))
 
 
-async def try_ollama_generate_async(prompt: str, max_tokens: int = 512, timeout: float = 25.0) -> str | None:
+async def try_ollama_generate_async(prompt: str, max_tokens: int = 512, timeout: float = 95.0) -> str | None:
     """`try_ollama_generate` 的非阻塞版本：在独立线程中执行同步 HTTP 调用，
 
     通过信号量限制并发、外层 wait_for 兜底超时，避免阻塞事件循环 / 占满请求线程池。

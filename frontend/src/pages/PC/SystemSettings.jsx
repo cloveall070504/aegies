@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getSystemInfo, getOllamaModels, switchOllamaModel } from '../../api'
+import { getSystemInfo, getOllamaModels, switchOllamaModel, switchAiProvider } from '../../api'
 
 const ROLE_LABEL = { admin: '管理员', teacher: '教师', student: '学生' }
 const RISK_COLOR = { high: 'var(--red)', medium: 'var(--yellow)', low: 'var(--green)' }
@@ -11,12 +11,34 @@ export default function SystemSettings() {
   const [error, setError] = useState('')
   const [models, setModels] = useState(null)
   const [switching, setSwitching] = useState('')
+  const [switchingProvider, setSwitchingProvider] = useState('')
   const [switchMsg, setSwitchMsg] = useState('')
 
   useEffect(() => {
     getSystemInfo().then(setInfo).catch((e) => setError(e.message))
     getOllamaModels().then(setModels).catch(() => {})
   }, [])
+
+  const handleSwitchProvider = async (provider) => {
+    if (!info || provider === info.ai_provider) return
+    setSwitchingProvider(provider)
+    setSwitchMsg('')
+    try {
+      const d = await switchAiProvider(provider)
+      setInfo((prev) => ({ ...prev, ai_provider: d.provider }))
+      setSwitchMsg(
+        d.provider === 'cloud'
+          ? `已切换到千问云端（${d.model} @ ${d.base_url}），AI 增强模式生效。`
+          : `已切回本地 Ollama（${d.model}）。`
+      )
+      // 刷新模型档位列表：cloud 下展示云端模型，ollama 下展示本地档位
+      getOllamaModels().then(setModels).catch(() => {})
+    } catch (e) {
+      setSwitchMsg('切换失败：' + (e.message || '未知错误'))
+    } finally {
+      setSwitchingProvider('')
+    }
+  }
 
   const handleSwitch = async (model) => {
     setSwitching(model)
@@ -77,6 +99,39 @@ export default function SystemSettings() {
           <div className="info-row"><span>模型名称</span><span className="muted">{info.ollama_model || '-'}</span></div>
           <div className="info-row"><span>服务地址</span><span className="muted">{info.ollama_base_url || '-'}</span></div>
           <div className="info-row"><span>运行环境</span><span className="muted">{info.app_env || 'dev'}</span></div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>引擎模式（运行时切换，无需重启后端）</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn"
+                disabled={switchingProvider === 'ollama'}
+                onClick={() => handleSwitchProvider('ollama')}
+                style={{
+                  flex: 1,
+                  borderColor: info.ai_provider === 'ollama' ? 'var(--green)' : 'var(--border, #e5e7eb)',
+                  background: info.ai_provider === 'ollama' ? 'rgba(16,185,129,0.12)' : 'transparent',
+                  color: info.ai_provider === 'ollama' ? 'var(--green)' : 'inherit',
+                  fontWeight: 600,
+                }}
+              >
+                🖥️ 本地 Ollama
+              </button>
+              <button
+                className="btn"
+                disabled={switchingProvider === 'cloud'}
+                onClick={() => handleSwitchProvider('cloud')}
+                style={{
+                  flex: 1,
+                  borderColor: info.ai_provider === 'cloud' ? 'var(--green)' : 'var(--border, #e5e7eb)',
+                  background: info.ai_provider === 'cloud' ? 'rgba(16,185,129,0.12)' : 'transparent',
+                  color: info.ai_provider === 'cloud' ? 'var(--green)' : 'inherit',
+                  fontWeight: 600,
+                }}
+              >
+                ☁️ 千问云端
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

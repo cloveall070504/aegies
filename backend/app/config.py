@@ -81,6 +81,19 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# 启动时读取运行时 provider 选择（管理员在界面切换并持久化到 data/ai_provider_runtime.json），
+# 覆盖 .env 中的 AI_PROVIDER 默认值，使「ollama <-> cloud」切换在重启后仍生效。
+# 必须放在下方 B1 模型块之前，模型覆盖逻辑才能基于正确的 provider 决定改 OLLAMA_MODEL 还是 OPENAI_MODEL。
+try:
+    import json as _json
+    _prov_path = BASE_DIR / "data" / "ai_provider_runtime.json"
+    if _prov_path.exists():
+        _prov = _json.loads(_prov_path.read_text(encoding="utf-8")).get("provider")
+        if _prov in ("ollama", "cloud"):
+            settings.AI_PROVIDER = _prov
+except Exception:
+    pass
+
 # B1：启动时读取运行时模型选择（管理员在界面切换并持久化到 data/ollama_runtime.json），
 # 覆盖 OLLAMA_MODEL 默认值，使切换在重启后仍生效。读不到/损坏则回退默认，不影响启动。
 try:

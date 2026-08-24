@@ -14,6 +14,27 @@ import { scanText, simulateStep, submitFeedback, asList } from '../../api'
 
 const DEMO = '实验前未佩戴护目镜，直接打开浓硫酸试剂瓶。\n将水倒入浓硫酸中稀释。\n实验结束后未关闭酒精灯就离开实验室。'
 
+// 根据当前 AI provider 渲染引擎标签/说明（cloud=千问，ollama=本地，rule=规则引擎）
+function providerBadge(aiProvider, trustMode) {
+  if (trustMode !== 'llm_enhanced') return '⚙️ 规则引擎'
+  if (aiProvider === 'cloud') return '☁️ 千问云端'
+  return '🤖 Ollama 增强'
+}
+
+function providerSubtitle(aiProvider, verifiedBy) {
+  if (verifiedBy !== 'rule_engine+llm_critic') {
+    return '未启用 AI 模型，判定由规则引擎完成（可离线）'
+  }
+  if (aiProvider === 'cloud') return '千问云端模型仅增强解释，判定以规则引擎为准'
+  return '本地模型仅增强解释，判定以规则引擎为准'
+}
+
+function providerName(aiProvider) {
+  if (aiProvider === 'cloud') return '千问模型'
+  if (aiProvider === 'ollama') return '本地模型'
+  return 'AI 模型'
+}
+
 // 高亮命中条款关键词（与推演页一致）
 function highlightClauses(text, refs) {
   if (!text || !refs || refs.length === 0) return text
@@ -53,7 +74,7 @@ function EvidenceBlock({ result }) {
       <h3 className="section-title"><span className="dot" />判定依据（可解释证据链）</h3>
       {result.critic_divergence && (
         <div className="alert alert-warning" style={{ fontSize: 12 }}>
-          ⚠️ 本地模型复核与规则引擎判定存在分歧，已以规则引擎（置信度 {conf}%）为准，未被模型幻觉带偏。
+          ⚠️ {providerName(result.ai_provider)}复核与规则引擎判定存在分歧，已以规则引擎（置信度 {conf}%）为准，未被模型幻觉带偏。
         </div>
       )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
@@ -334,9 +355,9 @@ export default function Sandbox() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                         <strong style={{ fontSize: 16 }}>风险等级</strong>
                         <RiskTag level={r.level} />
-                        <span className="badge">{r.trust_mode === 'llm_enhanced' ? '🤖 Ollama 增强' : '⚙️ 规则引擎'}</span>
+                        <span className="badge">{providerBadge(r.ai_provider, r.trust_mode)}</span>
                       </div>
-                      <p className="muted" style={{ margin: 0, fontSize: 12 }}>{r.verified_by === 'rule_engine+llm_critic' ? '本地模型仅增强解释，判定以确定性规则引擎为准' : '未启用 Ollama，判定由规则引擎完成（可离线）'}</p>
+                      <p className="muted" style={{ margin: 0, fontSize: 12 }}>{providerSubtitle(r.ai_provider, r.verified_by)}</p>
                     </div>
                   </div>
 

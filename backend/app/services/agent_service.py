@@ -392,15 +392,23 @@ def _ground_actor_reply(raw: str | None, behavior: str, consequence: str) -> str
     """把本地模型生成的旁白「接地」：只允许重述规则后果，禁止编造。
 
     返回空串表示弃用 LLM 输出、回退规则文案（无幻觉）。判定条件：
-    1) 模型主动表示无需补充（"（无需补充）"）；
+    1) 模型确实只表示无需补充（去掉标记后无任何实质内容）；
     2) 模型输出与行为/规则后果几乎无任何词重叠 -> 视为离题幻觉；
-    3) 超过 200 字则截断，避免 3B 小模型狂输出。
+    3) 超过 200 字则截断，避免小模型狂输出。
     注意：verdict（风险等级/分数）始终由规则引擎决定，本函数只影响叙事文本。
+
+    关键修正：千问/qwen 常在有效复述后追加「（无需补充）」标记（把 prompt 里的
+    "若没有可补充的，只回复「（无需补充）」"误当作结束语）。此时应**剥离标记、保留
+    正文**，而非整段丢弃——否则几乎每次都会误判为"无需补充"而降级成规则引擎。
     """
     if not raw:
         return ""
     r = raw.strip()
-    if "（无需补充）" in r or "无需补充" in r:
+    # 剥离「无需补充」类标记（支持全/半角括号），保留其前面的实质复述内容。
+    for marker in ("（无需补充）", "(无需补充)", "无需补充", "（无需补充）".replace("（", "(").replace("）", ")")):
+        r = r.replace(marker, "")
+    r = r.strip()
+    if not r:
         return ""
     toks = {t for t in (set(_tokenize(behavior)) | set(_tokenize(consequence))) if len(t) >= 2}
     if toks:
@@ -513,14 +521,15 @@ class AgentService:
                 critic_divergence = True
                 if ai_checked == 1:
                     # 规则已确定性通过，但模型有保留意见 -> 以规则为准，诚实标注分歧。
+                    model_label = "千问模型" if settings.AI_PROVIDER == "cloud" else "本地模型"
                     critic_summary = (
-                        f"规则引擎确定性判定（置信度 {confidence*100:.0f}%）与模型复核存在分歧，"
-                        f"已以规则引擎为准；模型意见：{critic_reply[:120]}"
+                        f"规则引擎确定性判定（置信度 {confidence*100:.0f}%）与{model_label}复核存在分歧，"
+                        f"已以规则引擎为准；{model_label}意见：{critic_reply[:120]}"
                     )
                 # 若 ai_checked 已为 0（规则 critic 发现硬伤：等级不一致/虚构条款/遗漏高危关键词），
                 # 保留规则自检的详细结论，仅标注分歧，不由模型覆盖。
 
-        return {
+        payload = {
             "behavior": behavior,
             "scene_type": scene_type,
             "consequence": consequence,
@@ -533,7 +542,8 @@ class AgentService:
             "critic_summary": critic_summary,
             "actor_reply": narrative_reply,
             "critic_reply": critic_reply or "",
-            "engine": "ollama" if narrative_reply else "rule",
+            "engine": "cloud" if settings.AI_PROVIDER == "cloud" and narrative_reply else ("ollama" if narrative_reply else "rule"),
+            "ai_provider": settings.AI_PROVIDER,
             # ===== 新增可信化字段 =====
             "confidence": round(confidence, 3),
             "evidence": evidence,
@@ -541,3 +551,4 @@ class AgentService:
             "verified_by": verified_by,
             "critic_divergence": critic_divergence,
         }
+        return payload

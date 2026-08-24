@@ -62,6 +62,8 @@ export const getEngineStatus = () => client.get('/meta/engine-status')
 // B1：Ollama 模型档位（仅管理员）
 export const getOllamaModels = () => client.get('/admin/ollama-models')
 export const switchOllamaModel = (model) => client.post('/admin/ollama-models/switch', { model })
+// AI 引擎 provider 切换（ollama <-> cloud），仅管理员，运行时生效无需重启
+export const switchAiProvider = (provider) => client.post('/admin/ai-provider/switch', { provider })
 
 // 作业管理
 export const listAssignments = (status) => client.get('/assignments', { params: status ? { status } : {} })

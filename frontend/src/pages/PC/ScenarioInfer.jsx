@@ -22,6 +22,27 @@ const SCENE_TIPS = {
   chem_lab: '化学实验重点防护：护目镜、实验服、耐酸碱手套；废液分类收集；易燃溶剂远离明火。',
 }
 
+// 根据当前 AI provider 渲染引擎标签/说明（cloud=千问，ollama=本地，rule=规则引擎）
+function providerBadge(aiProvider, trustMode) {
+  if (trustMode !== 'llm_enhanced') return '⚙️ 规则引擎 · 确定性判定'
+  if (aiProvider === 'cloud') return '☁️ 千问云端增强 · 规则校验'
+  return '🤖 Ollama 增强 · 规则校验'
+}
+
+function providerSubtitle(aiProvider, verifiedBy) {
+  if (verifiedBy !== 'rule_engine+llm_critic') {
+    return '未启用 AI 模型，风险判定由确定性规则引擎完成（可离线、可复现）'
+  }
+  if (aiProvider === 'cloud') return '千问云端模型仅增强解释，风险判定以确定性规则引擎为准'
+  return '本地模型仅增强解释，风险判定以确定性规则引擎为准'
+}
+
+function providerName(aiProvider) {
+  if (aiProvider === 'cloud') return '千问模型'
+  if (aiProvider === 'ollama') return '本地模型'
+  return 'AI 模型'
+}
+
 // 高亮文本中命中的条款关键词
 function highlightClauses(text, refs) {
   if (!text || !refs || refs.length === 0) return text
@@ -110,7 +131,7 @@ export default function ScenarioInfer() {
           <button className="btn" onClick={submit} disabled={loading}>
             {loading ? <><span className="spinner" /> 推演中…</> : '🚀 开始推演'}
           </button>
-          <div className="muted" style={{ fontSize: 12 }}>💡 未连接 Ollama 时自动使用内置规则引擎与条款溯源库，离线可用。</div>
+          <div className="muted" style={{ fontSize: 12 }}>💡 未启用 AI 模型时自动使用内置规则引擎与条款溯源库，离线可用。</div>
           <div className="alert" style={{ background: 'var(--primary-bg)', border: '1px solid var(--primary)', fontSize: 12, lineHeight: 1.7 }}>
             <strong>📋 {currentScene?.name}安全提示</strong><br />{tip}
           </div>
@@ -136,7 +157,7 @@ export default function ScenarioInfer() {
                   </div>
                   <p className="muted" style={{ margin: '4px 0' }}>行为：{result.behavior}</p>
                   <span className="badge">
-                    {result.trust_mode === 'llm_enhanced' ? '🤖 Ollama 增强 · 规则校验' : '⚙️ 规则引擎 · 确定性判定'}
+                    {providerBadge(result.ai_provider, result.trust_mode)}
                   </span>
                   <div style={{ marginTop: 10 }}>
                     <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
@@ -157,9 +178,7 @@ export default function ScenarioInfer() {
                       />
                     </div>
                     <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-                      {result.verified_by === 'rule_engine+llm_critic'
-                        ? '本地模型仅增强解释，风险判定以确定性规则引擎为准'
-                        : '未启用 Ollama，风险判定由确定性规则引擎完成（可离线、可复现）'}
+                      {providerSubtitle(result.ai_provider, result.verified_by)}
                     </div>
                   </div>
                 </div>
@@ -185,7 +204,7 @@ export default function ScenarioInfer() {
                       color: 'var(--yellow)',
                     }}
                   >
-                    ⚠️ 本地模型复核与规则引擎判定存在分歧，已以规则引擎（置信度 {Math.round(result.confidence * 100)}%）为准，未被模型幻觉带偏。
+                    ⚠️ {providerName(result.ai_provider)}复核与规则引擎判定存在分歧，已以规则引擎（置信度 {Math.round(result.confidence * 100)}%）为准，未被模型幻觉带偏。
                   </div>
                 )}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>

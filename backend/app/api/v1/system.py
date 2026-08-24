@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.core.deps import get_current_user, require_roles
 from app.core.ollama_runtime import list_models, set_active_model, get_active_model
+from app.core.provider_runtime import set_active_provider, get_active_provider
 from app.database import get_db
 from app.models.assignment import AssignmentProgress
 from app.models.operation_record import OperationRecord
@@ -23,6 +24,10 @@ router = APIRouter(prefix="/admin", tags=["系统管理"])
 
 class ModelSwitchRequest(BaseModel):
     model: str
+
+
+class ProviderSwitchRequest(BaseModel):
+    provider: str
 
 
 @router.get("/system-info")
@@ -51,6 +56,7 @@ def system_info(
         "total_questions": total_questions,
         "total_assignments": total_assignments,
         "enable_ollama": settings.ENABLE_OLLAMA,
+        "ai_provider": settings.AI_PROVIDER,
         "ollama_model": settings.OLLAMA_MODEL,
         "ollama_base_url": settings.OLLAMA_BASE_URL,
         "engine_status": _engine_status,
@@ -125,3 +131,27 @@ def switch_ollama_model(
                 ),
             )
     return ok({"active": new_model, "engine_status": ollama_status()})
+
+
+@router.post("/ai-provider/switch")
+def switch_ai_provider(
+    payload: ProviderSwitchRequest,
+    user: User = Depends(require_roles("admin")),
+):
+    """运行时切换 AI 引擎 provider（ollama <-> cloud），无需重启后端。
+
+    与「模型切换」正交：本接口只切换用哪类引擎。
+    前置条件不满足（如切云端但没配密钥、切本地但模型未安装）返回 400 并给出可操作提示，
+    且不改变系统当前 provider，保持可用。
+    """
+    try:
+        new_provider = set_active_provider(payload.provider)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return ok({
+        "provider": new_provider,
+        "base_url": settings.OPENAI_API_BASE if new_provider == "cloud" else settings.OLLAMA_BASE_URL,
+        "model": settings.OPENAI_MODEL if new_provider == "cloud" else settings.OLLAMA_MODEL,
+        "engine_status": ollama_status(),
+    })
