@@ -1472,3 +1472,318 @@ body[data-theme='dark'] .page-head h1 { text-shadow: 0 0 24px rgba(34, 211, 238,
   .dual-check, .dual-check__icon, .dual-check::after { animation: none !important; }
   .dual-check { transition: none; }
 }
+
+/* ============================================================
+   Q 版公仔助手（安全向导 · 红蛋）
+   ============================================================ */
+.mascot {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.mascot__char {
+  position: relative;
+  width: 92px;
+  height: 110px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.18));
+  transition: transform 0.2s var(--ease);
+}
+.mascot__char:hover { transform: translateY(-4px) scale(1.04); }
+.mascot__char:active { transform: translateY(-1px) scale(0.98); }
+.mascot__char.dragging { cursor: grabbing; }
+.mascot__char.locked { cursor: default; }
+.mascot.dragging { user-select: none; }
+
+/* ===== 简笔画火柴人：与参考图一致，无关节圆点/无能量核/无渐变 ===== */
+/* 姿态切换：下半身整体 / 头 用过渡缓动归位，避免瞬跳断开 */
+.stick__lower, .stick__head { transition: transform 0.5s cubic-bezier(.34,1.56,.64,1); }
+/* 下半身旋转支点设为 viewBox 中心，倒立旋转180后不会跑到画面外 */
+.stick__lower { transform-origin: 80px 92px; }
+/* 四肢绕自身顶部（关节附近）旋转，头部绕自身底部（脖子）旋转，避免动画时飞走 */
+.stick__arm, .stick__leg { transform-box: fill-box; transform-origin: top center; }
+.stick__head { transform-box: fill-box; transform-origin: bottom center; }
+.stick__shadow { transition: transform 0.5s var(--ease), opacity 0.5s var(--ease); }
+
+/* 整体呼吸浮动（所有姿态都有，幅度很小，不破坏骨架） */
+.mascot__svg.stick { animation: mascotBob 3.4s ease-in-out infinite; }
+
+/* 眨眼（眼睛整体压扁，绕自身中心） */
+.stick__eye { transform-box: fill-box; transform-origin: center; animation: stickBlink 4.2s steps(1, end) infinite; }
+
+/* ===== 默认待机（idle）：头轻微左右张望 + 双腿极小幅晃 ===== */
+.mascot--idle .stick__head { animation: stickLook 6s ease-in-out infinite; }
+.mascot--idle .stick__leg--stand { animation: stickIdleLeg 7s ease-in-out infinite; }
+
+/* ===== 倒立（handstand）：整体轻微起伏，模拟平衡 ===== */
+.mascot--handstand .stick__lower { animation: stickBalance 3.2s ease-in-out infinite; }
+
+/* ===== 慢跑/冲刺/滑冰/弓步：腿部动态微晃 ===== */
+.mascot--run .stick__leg--run,
+.mascot--sprint .stick__leg--sprint,
+.mascot--skate .stick__leg--skate,
+.mascot--lunge .stick__leg--lunge { animation: stickLegSwing 1.4s ease-in-out infinite; }
+
+/* ===== 欢呼/跳跃/伸展/大字/游泳：手臂轻浮动 ===== */
+.mascot--cheer .stick__arm--cheer,
+.mascot--jump .stick__arm--jump,
+.mascot--stretch .stick__arm--stretch,
+.mascot--spread .stick__arm--spread,
+.mascot--swim .stick__arm--swim { animation: stickArmFloat 2.4s ease-in-out infinite; }
+
+/* ===== 踢腿/侧抬腿：腿轻摆 ===== */
+.mascot--kick .stick__leg--kick,
+.mascot--sidekick .stick__leg--sidekick { animation: stickLegSwing 1.8s ease-in-out infinite; }
+
+/* ===== 健美：手臂肌肉收缩微动 ===== */
+.mascot--flex .stick__arm--flex { animation: stickFlex 1.4s ease-in-out infinite; }
+
+/* ===== 联动：危险（alert）默认用 sprint 姿态 + 紧张抖动 + 徽牌变红 ===== */
+.mascot--sprint .mascot__svg.stick { animation: stickBobTense 0.5s ease-in-out infinite; }
+.mascot--sprint .mascot__badge { background: var(--red); color: #fff; box-shadow: 0 0 0 3px var(--bg), 0 0 14px rgba(248,113,113, 0.7); }
+
+/* 拖动时：整体左右摇摆+轻微旋转，呈现"被拖着走"的慌张感（不拆关节） */
+.mascot__char.dragging .mascot__svg.stick { animation: stickBodyDrag .55s ease-in-out infinite !important; }
+.mascot__char.dragging .stick__eye { animation: none !important; }
+
+@keyframes stickBodyDrag {
+  0%, 100% { transform: rotate(-5deg) translateX(-3px); }
+  50% { transform: rotate(5deg) translateX(3px); }
+}
+
+/* ===== 联动情绪徽标（危险/安全光环） ===== */
+.mascot__ping {
+  position: absolute;
+  left: 50%; top: 46%;
+  width: 18px; height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.mascot__ping--alert { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.7); animation: mascotPing 1.1s ease-out infinite; }
+.mascot__ping--safe { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); animation: mascotPing 1.1s ease-out infinite; }
+@keyframes mascotPing {
+  0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.55); }
+  70% { box-shadow: 0 0 0 18px rgba(248, 113, 113, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+}
+
+/* ===================== 关键帧 ===================== */
+@keyframes stickBlink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+/* 头部左右张望（绕脖子中心小幅，不破坏连接） */
+@keyframes stickLook {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-7deg); }
+  40% { transform: rotate(0deg); }
+  60% { transform: rotate(6deg); }
+  80% { transform: rotate(0deg); }
+}
+/* 待机腿极小幅左右摆（绕胯中心） */
+@keyframes stickIdleLeg {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(2.5deg); }
+}
+/* 倒立：整体轻微起伏，模拟平衡 */
+@keyframes stickBalance {
+  0%, 100% { transform: rotate(180deg) translateY(0); }
+  50% { transform: rotate(180deg) translateY(-4px); }
+}
+/* 腿部摆动（跑/冲/滑冰/弓步/踢腿/侧抬腿） */
+@keyframes stickLegSwing {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(4deg); }
+}
+/* 手臂轻浮（欢呼/跳跃/伸展/大字/游泳） */
+@keyframes stickArmFloat {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(0, -4px); }
+}
+/* 健美：手臂肌肉收缩微动 */
+@keyframes stickFlex {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(0, 2px); }
+}
+@keyframes stickBobTense {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-3px) rotate(2deg); }
+}
+
+.mascot__svg { width: 100%; height: 100%; display: block; }
+
+.mascot__badge {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #06202a;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--bg), 0 4px 12px -2px rgba(34, 211, 238, 0.5);
+}
+/* 安全/危险时徽牌变色（alert=sprint 姿态时变红） */
+.mascot--sprint .mascot__badge { background: var(--red); color: #fff; box-shadow: 0 0 0 3px var(--bg), 0 0 14px rgba(248,113,113,0.7); }
+
+/* 吐槽气泡 */
+.mascot__rant {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  max-width: 220px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  pointer-events: none;
+  animation: rantIn 0.3s ease, rantOut 0.3s ease 4.7s forwards;
+  z-index: 9998;
+}
+.mascot__rant::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  right: 24px;
+  width: 14px;
+  height: 14px;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+@keyframes rantIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes rantOut { to { opacity: 0; transform: translateY(8px); } }
+
+/* 气泡卡片 */
+.mascot__bubble-card {
+  width: 300px;
+  max-width: calc(100vw - 44px);
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  background: var(--card-solid);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md), 0 0 0 1px rgba(34, 211, 238, 0.12);
+  backdrop-filter: var(--glass-blur);
+  animation: dcbPop 0.28s var(--ease);
+  position: relative;
+}
+/* 指向公仔的小尾巴 */
+.mascot__bubble-card::after {
+  content: '';
+  position: absolute;
+  right: 30px;
+  bottom: -9px;
+  width: 18px;
+  height: 18px;
+  background: var(--card-solid);
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  transform: rotate(45deg);
+}
+.mascot__bubble-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.mascot__bubble-id { display: flex; flex-direction: column; line-height: 1.25; }
+.mascot__bubble-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--primary);
+}
+.mascot__bubble-role { font-size: 11px; color: var(--text-3); }
+.mascot__close {
+  width: 24px; height: 24px;
+  border: none; border-radius: 999px;
+  background: var(--card-2);
+  color: var(--text-2);
+  font-size: 16px; line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.mascot__close:hover { background: var(--red-bg); color: var(--red); }
+
+.mascot__bubble-text {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--text);
+}
+/* 动作菜单 */
+.mascot__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.mascot__act {
+  flex: 1 1 auto;
+  min-width: 44px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-2);
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  transition: all 0.15s var(--ease);
+}
+.mascot__act:hover { background: var(--primary-weak); color: var(--text); }
+.mascot__act.active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  color: #06202a;
+  border-color: transparent;
+  box-shadow: 0 6px 14px -6px rgba(34, 211, 238, 0.6);
+}
+.mascot__bubble-actions { display: flex; gap: 8px; }
+.mascot__btn {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.15s var(--ease), background 0.15s, box-shadow 0.15s;
+}
+.mascot__btn:active { transform: scale(0.97); }
+.mascot__btn--ghost { background: var(--card-2); color: var(--text); border-color: var(--border); }
+.mascot__btn--ghost:hover { background: var(--primary-weak); }
+.mascot__btn--primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  color: #06202a;
+  box-shadow: 0 8px 20px -8px rgba(34, 211, 238, 0.6);
+}
+.mascot__btn--primary:hover { box-shadow: var(--shadow-glow); }
+
+@keyframes mascotBob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+
+/* 亮色主题下气泡卡片用实底，避免玻璃拟态透出背景 */
+[data-theme='light'] .mascot__bubble-card {
+  background: var(--card-solid);
+}

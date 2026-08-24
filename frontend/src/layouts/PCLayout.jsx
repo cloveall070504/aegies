@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import SceneSelector from '../components/SceneSelector'
 import EngineModeBadge from '../components/EngineModeBadge'
+import MascotAssistant from '../components/MascotAssistant'
 import useAuthStore from '../store/authStore'
 import useThemeStore from '../store/themeStore'
 import { useSceneName } from '../hooks/useSceneType'
@@ -163,6 +164,7 @@ export default function PCLayout({ children }) {
         </div>
         {children}
       </main>
+      {role === 'student' && <MascotAssistant />}
     </div>
   )
 }
