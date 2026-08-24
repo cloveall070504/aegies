@@ -40,7 +40,7 @@ export default function EngineModeBadge({ variant = 'chip' }) {
         <button
           className="btn-ghost-xs"
           onClick={() => refreshEngineStatus()}
-          title="重新探测 Ollama 状态"
+          title="重新探测 AI 引擎状态"
         >刷新</button>
       </div>
       <p className="engine-banner-reason">{status.reason}</p>
