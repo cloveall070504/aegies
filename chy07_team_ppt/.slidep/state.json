@@ -2,49 +2,49 @@
   "filePath": "C:\\Users\\玉3\\Desktop\\zrt\\chy07\\chy07_team_ppt\\chy07团队分工与技术架构.pptx",
   "lastCommit": {
     "01_cover": {
-      "revisionId": "1838e28f890a741c8aadf9d6eee0d59ea3f454b1",
-      "version": 162,
-      "at": "2026-08-25 10:24:17.535"
+      "revisionId": "07e1bd390048be7a99def485774d4cbff384df7e",
+      "version": 192,
+      "at": "2026-08-25 10:41:02.688"
     },
     "02_catalog": {
-      "revisionId": "92045cc1835ec1a3b6af85adf49c8f9f795882c4",
-      "version": 163,
-      "at": "2026-08-25 10:24:17.604"
+      "revisionId": "fd7b9596cacb2466ae3658dbcc87c8dcefa03c37",
+      "version": 193,
+      "at": "2026-08-25 10:41:03.047"
     },
     "03_section1": {
-      "revisionId": "f6fc08429c3c473ca42ea770e1898dcb24c896d5",
-      "version": 164,
-      "at": "2026-08-25 10:24:17.627"
+      "revisionId": "c515231a99352daf85c97ca966a1b650af3e6add",
+      "version": 194,
+      "at": "2026-08-25 10:41:03.133"
     },
     "04_background": {
-      "revisionId": "fc53ee55be9ab81c5135d53739f6a00ac21b6f09",
-      "version": 165,
-      "at": "2026-08-25 10:24:17.690"
+      "revisionId": "c345cfbfc6faba5c97976847db04ad4e62aa11a1",
+      "version": 195,
+      "at": "2026-08-25 10:41:03.484"
     },
     "05_section2": {
-      "revisionId": "a4951fe438f36dc571fd29e4e813c29a68c8509c",
-      "version": 166,
-      "at": "2026-08-25 10:24:17.736"
+      "revisionId": "0b60394d56f270cffd6fe4f159d20e3957cddb00",
+      "version": 196,
+      "at": "2026-08-25 10:41:03.550"
     },
     "06_overview": {
-      "revisionId": "25ee22702bcd34e6511cb3a47f7bc3537b642688",
-      "version": 167,
-      "at": "2026-08-25 10:24:17.771"
+      "revisionId": "0372b4fd669e1d7ed73110ba05d1f9612ae449a3",
+      "version": 197,
+      "at": "2026-08-25 10:41:03.662"
     },
     "07_dependency": {
-      "revisionId": "1273a05085029d8d9536c29fda0488bf74ea50c4",
-      "version": 168,
-      "at": "2026-08-25 10:24:17.817"
+      "revisionId": "9a471e294abc2f58e2c51a968f69845ee7de15a3",
+      "version": 198,
+      "at": "2026-08-25 10:41:03.843"
     },
     "08_section3": {
-      "revisionId": "8f8314b235aec2d34de523a40dafb5dfe16f2c4b",
-      "version": 169,
-      "at": "2026-08-25 10:24:17.837"
+      "revisionId": "1de87e5be852b07c7fada7fff09c959929421e50",
+      "version": 199,
+      "at": "2026-08-25 10:41:03.910"
     },
     "09_module1": {
-      "revisionId": "9b3d22a5082bf8ec20072b0a5ef2c34a2766d4b7",
-      "version": 170,
-      "at": "2026-08-25 10:24:17.902"
+      "revisionId": "dee103f50ffc25d3f05d8e051c855b29a73ac8d2",
+      "version": 200,
+      "at": "2026-08-25 10:41:04.244"
     },
     "10_module2": {
       "revisionId": "b7ed37f25fd914dfb21f0ecfaa64fb453446722a",
@@ -72,84 +72,84 @@
       "at": "2026-08-25 10:07:26.231"
     },
     "10_module1_rag": {
-      "revisionId": "3a987998891c509a23e2714398771bead8902ffa",
-      "version": 171,
-      "at": "2026-08-25 10:24:17.967"
+      "revisionId": "25cf5e39500931469688f7961222422d22d78dfa",
+      "version": 201,
+      "at": "2026-08-25 10:41:04.540"
     },
     "11_module1_agent": {
-      "revisionId": "92cea88013dbae481023786cb2c5611e7a3dfeb5",
-      "version": 173,
-      "at": "2026-08-25 10:24:18.120"
+      "revisionId": "955fb22630917ac8192b58da0d1d74e9effd06be",
+      "version": 202,
+      "at": "2026-08-25 10:41:04.925"
     },
     "12_module1_llm": {
-      "revisionId": "dce4fe452fa3888d0e47c2aae299ada886c53164",
-      "version": 175,
-      "at": "2026-08-25 10:24:18.231"
+      "revisionId": "42240f2822814097acce276a6644bce6e69f384b",
+      "version": 203,
+      "at": "2026-08-25 10:41:05.146"
     },
     "25_ending": {
-      "revisionId": "a6a80a0c75fe91f49feb8368a223b7ddf843d3a5",
-      "version": 191,
-      "at": "2026-08-25 10:36:42.876"
+      "revisionId": "fb311d4986432fdd0b05ad7b2186bde7258ffdd0",
+      "version": 216,
+      "at": "2026-08-25 10:41:07.689"
     },
     "13_module2_sim": {
-      "revisionId": "87fbb006f6c33921b1072dd5d1b65fb270409003",
-      "version": 177,
-      "at": "2026-08-25 10:24:18.353"
+      "revisionId": "03bcafac121085fdae7085caa1d4ad54f39fa84e",
+      "version": 204,
+      "at": "2026-08-25 10:41:05.332"
     },
     "14_module2_score": {
-      "revisionId": "18e981fc4450066d6949c589cf9a7ad45e3bb9ea",
-      "version": 179,
-      "at": "2026-08-25 10:24:18.470"
+      "revisionId": "cc8cd4d1a577e207c8d2c8583c8ea9570fe38787",
+      "version": 205,
+      "at": "2026-08-25 10:41:05.576"
     },
     "15_module2_link": {
-      "revisionId": "786dae6139b1542cff04cc6f2d542e616c11ac54",
-      "version": 180,
-      "at": "2026-08-25 10:24:18.549"
+      "revisionId": "8958d4efb258db488abe705b825906ba69319a12",
+      "version": 206,
+      "at": "2026-08-25 10:41:05.770"
     },
     "16_module3_auth": {
-      "revisionId": "32dbca6f2cf243c32c9b0b65b73107f3fc7007f2",
-      "version": 181,
-      "at": "2026-08-25 10:24:18.599"
+      "revisionId": "5bf6d787f9e4b99d5cfc04aefa0fa843a109c787",
+      "version": 207,
+      "at": "2026-08-25 10:41:05.948"
     },
     "17_module3_profile": {
-      "revisionId": "b3f60fee6d8ac86b7478f24f2debfbbd01ce82b8",
-      "version": 182,
-      "at": "2026-08-25 10:24:18.665"
+      "revisionId": "29bfe2073c13936b49643e4b902dbb48c994dd36",
+      "version": 208,
+      "at": "2026-08-25 10:41:06.216"
     },
     "18_module3_loop": {
-      "revisionId": "17cef2194ff6d825dd10db8b220f991efe712995",
-      "version": 183,
-      "at": "2026-08-25 10:24:18.728"
+      "revisionId": "3ed3cdfa5b0a6569ad95bfd7f3fed5ead468df51",
+      "version": 209,
+      "at": "2026-08-25 10:41:06.389"
     },
     "19_module4_riskpoint": {
-      "revisionId": "c49741afae22de815896ac08e716860853c3b216",
-      "version": 184,
-      "at": "2026-08-25 10:24:18.783"
+      "revisionId": "2470c6c8631f4061cd124288e69d30c006d232fb",
+      "version": 210,
+      "at": "2026-08-25 10:41:06.572"
     },
     "20_module4_scene": {
-      "revisionId": "373c681c39cadd3abf430b7fd49b7ad90f773bdf",
-      "version": 185,
-      "at": "2026-08-25 10:24:18.851"
+      "revisionId": "b5f8b2c1788c7dd15842eaf352fab35c6fbf7ecd",
+      "version": 211,
+      "at": "2026-08-25 10:41:06.795"
     },
     "21_module4_quiz": {
-      "revisionId": "4b9f1e678eba0b8de72248c9a4697ef97cefe809",
-      "version": 186,
-      "at": "2026-08-25 10:30:19.044"
+      "revisionId": "0b3c778df194ce87ac659253e3d05f50f3f92b12",
+      "version": 212,
+      "at": "2026-08-25 10:41:07.006"
     },
     "22_module5_integration": {
-      "revisionId": "0fca47fbc87a7fe82d5d14f54626fbacc6f4369a",
-      "version": 187,
-      "at": "2026-08-25 10:30:19.133"
+      "revisionId": "a601907957b061e02ee5738293f3ba18cc8a5bc2",
+      "version": 213,
+      "at": "2026-08-25 10:41:07.177"
     },
     "23_module5_core": {
-      "revisionId": "866dc1d2d5aba253175287ff873ab49211f11e9e",
-      "version": 188,
-      "at": "2026-08-25 10:30:19.250"
+      "revisionId": "ea6d2a7e0ae8e92537b17a4c0338ca8717f0d30b",
+      "version": 214,
+      "at": "2026-08-25 10:41:07.416"
     },
     "24_module5_deploy": {
-      "revisionId": "4e1fae63f2640a864d3e67f681edfa16b136f241",
-      "version": 190,
-      "at": "2026-08-25 10:36:42.835"
+      "revisionId": "3123f437fbcb8052b3d4f85397481e51a91afc71",
+      "version": 215,
+      "at": "2026-08-25 10:41:07.591"
     }
   }
 }
