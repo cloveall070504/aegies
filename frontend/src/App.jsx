@@ -29,6 +29,8 @@ import InferReview from './pages/PC/InferReview'
 import TrainingReportTeacher from './pages/PC/TrainingReportTeacher'
 import SystemInfo from './pages/PC/SystemInfo'
 import UsersPage from './pages/PC/UsersPage'
+import LearningPath from './pages/PC/LearningPath'
+import Notifications from './pages/PC/Notifications'
 
 // 布局
 import PCLayout from './layouts/PCLayout'
@@ -171,6 +173,16 @@ export default function App() {
       <Route
         path="/training/:sceneCode"
         element={<Protected><PCLayout><TrainingReport /></PCLayout></Protected>}
+      />
+      {/* PC：个性化学习路径（弱项推荐 + 闯关路径） */}
+      <Route
+        path="/learning"
+        element={<Protected><PCLayout><LearningPath /></PCLayout></Protected>}
+      />
+      {/* PC：消息中心（复习提醒 + 站内通知） */}
+      <Route
+        path="/notifications"
+        element={<Protected><PCLayout><Notifications /></PCLayout></Protected>}
       />
 
       <Route path="*" element={<Navigate to={home} replace />} />

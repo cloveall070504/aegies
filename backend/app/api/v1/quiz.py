@@ -2,7 +2,7 @@
 import asyncio
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import Response
@@ -13,6 +13,7 @@ from app.core.deps import get_current_user, get_current_user_optional, require_r
 from app.database import get_db
 from app.models.quiz_question import QuizQuestion
 from app.models.quiz_record import QuizRecord
+from app.models.learning import Notification, ReviewItem
 from app.models.user import User
 from app.services.profile_service import refresh_profile
 from app.services.rag_service import try_ollama_generate_async
@@ -321,6 +322,7 @@ async def submit(req: QuizSubmit, user: User = Depends(get_current_user), db: Se
     correct = 0
     graded_total = 0
     wrong_items = []
+    answered_correct_ids = []
     ai_comments = []
     for q, ans in zip(bank, req.answers):
         qt = q.get("qtype", "choice")
@@ -342,6 +344,7 @@ async def submit(req: QuizSubmit, user: User = Depends(get_current_user), db: Se
             correct_text = q["options"][q["answer"]]
         if is_correct:
             correct += 1
+            answered_correct_ids.append(q["id"])
         else:
             wrong_items.append({
                 "id": q["id"],
@@ -364,6 +367,65 @@ async def submit(req: QuizSubmit, user: User = Depends(get_current_user), db: Se
         wrong_items=json.dumps(wrong_items, ensure_ascii=False),
     )
     db.add(record)
+    # 间隔重复：每道错题 upsert 一条复习计划（重置为 1 天后复习）；
+    # 答对的题若已有复习项，则视为已掌握并移除，不再催复习。
+    _now = datetime.utcnow()
+    _sc = getattr(req, "scene_code", "") or ""
+    for wi in wrong_items:
+        _qid = str(wi.get("id", ""))
+        _existing = db.query(ReviewItem).filter(
+            ReviewItem.user_id == user.id,
+            ReviewItem.item_id == _qid,
+            ReviewItem.scene_code == _sc,
+        ).first()
+        if _existing:
+            _existing.wrong_count = (_existing.wrong_count or 0) + 1
+            _existing.repetitions = 0
+            _existing.interval_days = 1
+            _existing.last_reviewed_at = None
+            _existing.next_review_at = _now + timedelta(days=1)
+            _existing.question_text = wi.get("question", "")
+        else:
+            db.add(ReviewItem(
+                user_id=user.id,
+                item_id=_qid,
+                scene_code=_sc,
+                qtype=wi.get("qtype", "choice"),
+                question_text=wi.get("question", ""),
+                interval_days=1,
+                repetitions=0,
+                ease=2.5,
+                next_review_at=_now + timedelta(days=1),
+                wrong_count=1,
+            ))
+    # 答对项：清除已有复习计划（已掌握）
+    if answered_correct_ids:
+        db.query(ReviewItem).filter(
+            ReviewItem.user_id == user.id,
+            ReviewItem.item_id.in_([str(i) for i in answered_correct_ids]),
+            ReviewItem.scene_code == _sc,
+        ).delete(synchronize_session=False)
+    # 生成复习提醒（仅在存在错题且没有未读提醒时创建，避免每次刷新都新建重复提醒）
+    if wrong_items:
+        _has_unread = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user.id,
+                Notification.type == "review_reminder",
+                Notification.is_read == False,  # noqa: E712
+            )
+            .first()
+        )
+        if not _has_unread:
+            db.add(
+                Notification(
+                    user_id=user.id,
+                    type="review_reminder",
+                    title="错题复习提醒",
+                    content=f"本次自测有 {len(wrong_items)} 道错题，记得及时巩固！",
+                    related_url="/learning",
+                )
+            )
     db.commit()
     refresh_profile(db, user.id)
     return ok({

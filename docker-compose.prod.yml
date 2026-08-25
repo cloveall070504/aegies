@@ -54,6 +54,13 @@ services:
       HOST: "0.0.0.0"
       PORT: "8000"
       LOG_LEVEL: "INFO"
+      # 云端大模型（千问云端等 OpenAI 兼容端点）：必须显式传入，否则容器默认 cloud 但无 Key，会退化为规则引擎
+      AI_PROVIDER: "${AI_PROVIDER:-cloud}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_API_BASE: "${OPENAI_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-qwen-plus}"
+    volumes:
+      - backend_data:/app/data
 
   db:
     image: postgres:16-alpine
@@ -74,3 +81,4 @@ volumes:
   pgdata:
   caddy_data:
   caddy_config:
+  backend_data:
