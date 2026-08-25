@@ -1,0 +1,7 @@
+<Slide style={{ width: '1280px', height: '720px', background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 96px', fontFamily: 'Microsoft YaHei, sans-serif' }}>
+  <Text style={{ fontSize: 22, color: '#06B6D4', letterSpacing: 8 }}>CHAPTER 03</Text>
+  <Text style={{ fontSize: 72, fontWeight: 'bold', color: '#E2E8F0', marginTop: 14, letterSpacing: 2 }}>核心模块详解</Text>
+  <Box style={{ width: 110, height: 5, background: 'linear-gradient(90deg, #3B82F6, #8B5CF6)', margin: '26px 0' }} />
+  <Text style={{ fontSize: 22, color: '#94A3B8' }}>五大模块职责逐页拆解</Text>
+  <Text style={{ position: 'absolute', right: 90, bottom: 50, fontSize: 220, fontWeight: 'bold', color: 'rgba(139,92,246,0.07)' }}>03</Text>
+</Slide>

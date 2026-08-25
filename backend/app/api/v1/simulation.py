@@ -51,6 +51,7 @@ async def simulate(
             correction=result["correction"],
             ai_checked=result["ai_checked"],
             critic_divergence=result["critic_divergence"],
+            ai_provider=result.get("ai_provider", ""),
             source_refs=json.dumps(result.get("source_refs", []), ensure_ascii=False),
             score_breakdown=json.dumps(result.get("score_breakdown", []), ensure_ascii=False),
         )

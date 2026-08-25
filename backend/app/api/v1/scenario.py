@@ -45,6 +45,7 @@ async def infer(
             "verified_by": result["verified_by"],
             "critic_divergence": result["critic_divergence"],
             "score_breakdown": result["score_breakdown"],
+            "ai_provider": result["ai_provider"],
         }
         if client_type == "mobile":
             data["source_refs"] = result["source_refs"][:3]
@@ -62,6 +63,7 @@ async def infer(
         correction=result["correction"],
         ai_checked=result["ai_checked"],
         critic_divergence=result["critic_divergence"],
+        ai_provider=result["ai_provider"],
         source_refs=json.dumps(result["source_refs"], ensure_ascii=False),
         score_breakdown=json.dumps(result["score_breakdown"], ensure_ascii=False),
     )
@@ -108,6 +110,7 @@ async def infer(
         "verified_by": result["verified_by"],
         "critic_divergence": result["critic_divergence"],
         "score_breakdown": result["score_breakdown"],
+        "ai_provider": result["ai_provider"],
     }
     # 移动端字段裁剪：仅保留前 3 条条款，结构保持一致
     if client_type == "mobile":

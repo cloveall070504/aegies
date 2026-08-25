@@ -11,6 +11,7 @@ import { useScan } from '../../hooks/useScan'
 import { listScenes } from '../../api/scenes'
 import { isAllowedScene } from '../../utils/sceneFilter'
 import { scanText, simulateStep, submitFeedback, asList } from '../../api'
+import { useMascotStore, moodFromLevel } from '../../store/mascotStore'
 
 const DEMO = '实验前未佩戴护目镜，直接打开浓硫酸试剂瓶。\n将水倒入浓硫酸中稀释。\n实验结束后未关闭酒精灯就离开实验室。'
 
@@ -201,6 +202,9 @@ export default function Sandbox() {
   // 风险点库（复用 useScan）
   const scan = useScan()
 
+  // 沙盘联动小助手：根据每步风险等级驱动公仔情绪（高危→alert 跑路动作）
+  const setMood = useMascotStore((s) => s.setMood)
+
   useEffect(() => {
     listScenes().then((d) => {
       const list = asList(d)
@@ -232,6 +236,9 @@ export default function Sandbox() {
       const history = timeline.map((t) => t.step)
       const res = await simulateStep(s, sceneId, history)
       setTimeline((prev) => [...prev, { step: s, result: res }])
+      // 驱动小助手联动：高危时摆出 alert 跑路动作 + 红色警示，安全时给赞许
+      const m = moodFromLevel(res.level)
+      setMood(m, m === 'alert' ? 15000 : 6000)
       setStepInput('')
     } catch (e) {
       setLiveError(e.message)
@@ -265,7 +272,11 @@ export default function Sandbox() {
     setTimeline([])
     setStepInput('')
     setLiveError('')
+    setMood('neutral')
   }
+
+  // 离开沙盘页时让小助手情绪回落，避免卡在 alert 跑路动作
+  useEffect(() => () => setMood('neutral'), [setMood])
 
   const last = timeline[timeline.length - 1]
   const terminated = !!last?.result?.terminated
@@ -333,7 +344,7 @@ export default function Sandbox() {
               return (
                 <div className="card risk-card" key={idx} data-level={r.level} style={{ marginBottom: 0 }}>
                   <div className="risk-card-head">
-                    <span className="badge">第 {r.step_no} 步</span>
+                    <span className="badge">第 {idx + 1} 步</span>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <RiskTag level={r.level} />
                       <span className="muted">风险分 {r.risk_score}</span>

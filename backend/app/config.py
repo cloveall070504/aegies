@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # backend/
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "AI实操避错系统"
+    APP_NAME: str = "实战避错系统"
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = False
 

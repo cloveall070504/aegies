@@ -1,0 +1,63 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#0F172A', padding: '20px 64px', display: 'flex', flexDirection: 'column', fontFamily: 'Microsoft YaHei, sans-serif' }}>
+  <Box style={{ height: 80, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+    <Box style={{ width: 6, height: 38, background: 'linear-gradient(180deg, #3B82F6, #06B6D4)', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#E2E8F0' }}>模块一 · 核心 AI 引擎（张瑞桐）</Text>
+    <Text style={{ fontSize: 16, color: '#8B5CF6', marginLeft: 12, fontWeight: 'bold' }}>技术含量最高 · 唯一事实源</Text>
+  </Box>
+  <Box style={{ flex: 1, flexDirection: 'row', gap: 32, alignItems: 'center' }}>
+    <Box style={{ width: '47%', flexDirection: 'column', justifyContent: 'center', gap: 13 }}>
+      <Box style={{ padding: '12px 16px', background: 'rgba(139,92,246,0.12)', borderRadius: 10, borderLeft: '4px solid #8B5CF6' }}>
+        <Text style={{ fontSize: 19, color: '#E2E8F0', lineHeight: 1.5 }}>定位：整套系统的<span style={{ color: '#8B5CF6', fontWeight: 'bold' }}>大脑与裁判</span>——任何风险判定最终都从这里出炉。</Text>
+      </Box>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.5 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>反向 RAG</span>：先用 TF-IDF 余弦相似度从风险条款库检索相关规矩，再据此判定。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.5 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>双智能体</span>：Actor 生成解释 → Critic 复核，二者都只是「讲解员」。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.5 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>规则引擎为唯一真相源</span>：等级与分数由确定性规则算出。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.5 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>降级兜底</span>：关掉 LLM 即纯规则、零幻觉；模型超时自动回退。</Text>
+      <Text style={{ fontSize: 16.5, color: '#94A3B8', lineHeight: 1.5 }}>代码量 RAG(773) + Agent(554) = 1327 行，是项目最厚的两块。</Text>
+    </Box>
+    <Box style={{ width: '53%', justifyContent: 'center', alignItems: 'center' }}>
+      <svg width='540' height='450' viewBox='0 0 560 470'>
+        <defs>
+          <linearGradient id='rule1' x1='0' y1='0' x2='1' y2='1'>
+            <stop offset='0%' stopColor='#3B82F6' />
+            <stop offset='100%' stopColor='#8B5CF6' />
+          </linearGradient>
+          <marker id='ar1' markerWidth='9' markerHeight='9' refX='7' refY='3' orient='auto'>
+            <path d='M0,0 L7,3 L0,6 Z' fill='#64748B' />
+          </marker>
+        </defs>
+        <rect x='180' y='8' width='200' height='40' rx='8' fill='#1E293B' stroke='#475569' strokeWidth='1.5' />
+        <text x='280' y='33' textAnchor='middle' fill='#E2E8F0' fontSize='16'>行为输入</text>
+        <rect x='170' y='66' width='220' height='46' rx='8' fill='#1E293B' stroke='#06B6D4' strokeWidth='2' />
+        <text x='280' y='88' textAnchor='middle' fill='#E2E8F0' fontSize='16' fontWeight='bold'>反向 RAG 检索条款</text>
+        <text x='280' y='105' textAnchor='middle' fill='#67E8F9' fontSize='12'>TF-IDF 余弦相似度 · 同义识别</text>
+        <rect x='155' y='140' width='250' height='54' rx='10' fill='url(#rule1)' />
+        <text x='280' y='164' textAnchor='middle' fill='#FFFFFF' fontSize='17' fontWeight='bold'>规则引擎 · 唯一真相源</text>
+        <text x='280' y='184' textAnchor='middle' fill='#E0E7FF' fontSize='12'>等级/分数 确定性算出 · 可解释</text>
+        <rect x='24' y='250' width='200' height='50' rx='8' fill='#1E293B' stroke='#06B6D4' strokeWidth='2' />
+        <text x='124' y='272' textAnchor='middle' fill='#E2E8F0' fontSize='16' fontWeight='bold'>Actor 解释(LLM)</text>
+        <text x='124' y='290' textAnchor='middle' fill='#94A3B8' fontSize='12'>仅润色 · 不判定</text>
+        <rect x='336' y='250' width='200' height='50' rx='8' fill='#1E293B' stroke='#8B5CF6' strokeWidth='2' />
+        <text x='436' y='272' textAnchor='middle' fill='#E2E8F0' fontSize='16' fontWeight='bold'>Critic 复核</text>
+        <text x='436' y='290' textAnchor='middle' fill='#94A3B8' fontSize='12'>次级意见 · 分歧仅标注</text>
+        <rect x='180' y='400' width='200' height='54' rx='10' fill='#1E293B' stroke='#06B6D4' strokeWidth='2' />
+        <text x='280' y='424' textAnchor='middle' fill='#E2E8F0' fontSize='16' fontWeight='bold'>输出：等级/分数</text>
+        <text x='280' y='444' textAnchor='middle' fill='#67E8F9' fontSize='12'>证据链 + 置信度 · 可审计</text>
+        <line x1='280' y1='48' x2='280' y2='66' stroke='#64748B' strokeWidth='2' markerEnd='url(#ar1)' />
+        <line x1='280' y1='112' x2='280' y2='140' stroke='#64748B' strokeWidth='2' markerEnd='url(#ar1)' />
+        <line x1='205' y1='194' x2='124' y2='250' stroke='#64748B' strokeWidth='2' markerEnd='url(#ar1)' />
+        <line x1='355' y1='194' x2='436' y2='250' stroke='#64748B' strokeWidth='2' markerEnd='url(#ar1)' />
+        <line x1='124' y1='300' x2='220' y2='400' stroke='#64748B' strokeWidth='2' markerEnd='url(#ar1)' />
+        <line x1='436' y1='300' x2='360' y2='400' stroke='#64748B' strokeWidth='2' markerEnd='url(#ar1)' />
+      </svg>
+    </Box>
+  </Box>
+  <Box style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14, padding: '0 18px', background: 'linear-gradient(90deg, rgba(139,92,246,0.18), rgba(59,130,246,0.06))', borderRadius: 10, border: '1px solid rgba(139,92,246,0.35)' }}>
+    <Text style={{ fontSize: 15, color: '#8B5CF6', fontWeight: 'bold' }}>答辩亮点</Text>
+    <Text style={{ fontSize: 17.5, color: '#E2E8F0' }}>从架构上根除 AI 幻觉：规则是「标准答案」，大模型只是「讲解员」——任何模型输出都无法越过规则改写结论。</Text>
+  </Box>
+  <Box style={{ height: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>实战避错系统 · 团队分工</Text>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>09 / 25</Text>
+  </Box>
+</Slide>

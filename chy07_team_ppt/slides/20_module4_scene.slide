@@ -1,0 +1,41 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#0F172A', padding: '20px 64px', display: 'flex', flexDirection: 'column', fontFamily: 'Microsoft YaHei, sans-serif' }}>
+  <Box style={{ height: 80, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+    <Box style={{ width: 6, height: 38, background: 'linear-gradient(180deg, #3B82F6, #06B6D4)', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#E2E8F0' }}>模块四 · 场景与步骤（陈松涛）</Text>
+    <Text style={{ fontSize: 16, color: '#3B82F6', marginLeft: 12, fontWeight: 'bold' }}>化学实验真实流程</Text>
+  </Box>
+  <Box style={{ flex: 1, flexDirection: 'row', gap: 32, alignItems: 'stretch' }}>
+    <Box style={{ width: '57%', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+      <Box style={{ padding: '12px 16px', background: 'rgba(59,130,246,0.10)', borderRadius: 10, borderLeft: '4px solid #3B82F6' }}>
+        <Text style={{ fontSize: 19, color: '#E2E8F0', lineHeight: 1.5 }}>定位：把<span style={{ color: '#3B82F6', fontWeight: 'bold' }}>实验室规范结构化</span>，AI 才有标准可查。</Text>
+      </Box>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.55 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>scene / scene_step</span>：化学实验(chem_lab)的真实操作流程与标准步骤。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.55 }}>• 覆盖核心环节：<span style={{ color:'#93C5FD' }}>试管加热、试剂取用、废液处理、酒精灯规范操作</span>。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.55 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>_seed_scenes()</span>：预置 ≥N 个真实场景与标准步骤，开箱即用。</Text>
+      <Text style={{ fontSize: 16.5, color: '#94A3B8', lineHeight: 1.55 }}>每个步骤关联风险点，形成「步骤→危险→规范」的映射。</Text>
+    </Box>
+    <Box style={{ width: '43%', padding: '20px 22px', background: 'rgba(30,41,59,0.7)', borderRadius: 12, border: '1px solid rgba(59,130,246,0.35)', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
+      <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#93C5FD' }}>chem_lab 核心环节</Text>
+      <Box style={{ padding: '9px 13px', background: 'rgba(59,130,246,0.10)', borderRadius: 8 }}>
+        <Text style={{ fontSize: 15, color: '#E2E8F0' }}>试管加热 · 防炸裂</Text>
+      </Box>
+      <Box style={{ padding: '9px 13px', background: 'rgba(59,130,246,0.10)', borderRadius: 8 }}>
+        <Text style={{ fontSize: 15, color: '#E2E8F0' }}>试剂取用 · 防误混</Text>
+      </Box>
+      <Box style={{ padding: '9px 13px', background: 'rgba(59,130,246,0.10)', borderRadius: 8 }}>
+        <Text style={{ fontSize: 15, color: '#E2E8F0' }}>废液处理 · 防污染</Text>
+      </Box>
+      <Box style={{ padding: '9px 13px', background: 'rgba(59,130,246,0.10)', borderRadius: 8 }}>
+        <Text style={{ fontSize: 15, color: '#E2E8F0' }}>酒精灯 · 防火灾</Text>
+      </Box>
+    </Box>
+  </Box>
+  <Box style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14, padding: '0 18px', background: 'linear-gradient(90deg, rgba(59,130,246,0.16), rgba(139,92,246,0.05))', borderRadius: 10, border: '1px solid rgba(59,130,246,0.35)' }}>
+    <Text style={{ fontSize: 15, color: '#3B82F6', fontWeight: 'bold' }}>答辩亮点</Text>
+    <Text style={{ fontSize: 17.5, color: '#E2E8F0' }}>从真实实验流程出发：把「试管加热、酒精灯」这些规范一条条结构化，AI 判错才有据可依。</Text>
+  </Box>
+  <Box style={{ height: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>实战避错系统 · 团队分工</Text>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>20 / 25</Text>
+  </Box>
+</Slide>

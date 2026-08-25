@@ -1,0 +1,56 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#0F172A', padding: '20px 64px', display: 'flex', flexDirection: 'column', fontFamily: 'Microsoft YaHei, sans-serif' }}>
+  <Box style={{ height: 80, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+    <Box style={{ width: 6, height: 38, background: 'linear-gradient(180deg, #3B82F6, #06B6D4)', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#E2E8F0' }}>模块一 · 双智能体判定链（张瑞桐）</Text>
+    <Text style={{ fontSize: 16, color: '#8B5CF6', marginLeft: 12, fontWeight: 'bold' }}>规则引擎永远是真相源</Text>
+  </Box>
+  <Box style={{ flex: 1, flexDirection: 'row', gap: 32, alignItems: 'center' }}>
+    <Box style={{ width: '50%', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
+      <Box style={{ padding: '12px 16px', background: 'rgba(139,92,246,0.12)', borderRadius: 10, borderLeft: '4px solid #8B5CF6' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>定位：风险等级与分数由<span style={{ color: '#8B5CF6', fontWeight: 'bold' }}>确定性规则链</span>算出，可解释、可审计。</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <Box style={{ width: 30, height: 30, borderRadius: 15, background: '#3B82F6', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 16, color: '#fff', fontWeight: 'bold' }}>1</Text></Box>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', flex: 1 }}>关键词命中 <Text style={{ fontFamily: 'Consolas, monospace', color: '#93C5FD' }}>_keyword_hits / _keyword_level</Text></Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <Box style={{ width: 30, height: 30, borderRadius: 15, background: '#3B82F6', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 16, color: '#fff', fontWeight: 'bold' }}>2</Text></Box>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', flex: 1 }}>参考条款定级 <Text style={{ fontFamily: 'Consolas, monospace', color: '#93C5FD' }}>_ref_based_level</Text></Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <Box style={{ width: 30, height: 30, borderRadius: 15, background: '#3B82F6', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 16, color: '#fff', fontWeight: 'bold' }}>3</Text></Box>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', flex: 1 }}>语义相似 <Text style={{ fontFamily: 'Consolas, monospace', color: '#93C5FD' }}>_semantic_similarity</Text></Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <Box style={{ width: 30, height: 30, borderRadius: 15, background: '#06B6D4', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 16, color: '#fff', fontWeight: 'bold' }}>4</Text></Box>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', flex: 1 }}>透明打分 <Text style={{ fontFamily: 'Consolas, monospace', color: '#67E8F9' }}>compute_risk_score</Text>（总分+明细）</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <Box style={{ width: 30, height: 30, borderRadius: 15, background: '#8B5CF6', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 16, color: '#fff', fontWeight: 'bold' }}>5</Text></Box>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', flex: 1 }}>规则自检 <Text style={{ fontFamily: 'Consolas, monospace', color: '#C4B5FD' }}>_critic_validate</Text></Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <Box style={{ width: 30, height: 30, borderRadius: 15, background: '#8B5CF6', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 16, color: '#fff', fontWeight: 'bold' }}>6</Text></Box>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', flex: 1 }}>置信度+证据链 <Text style={{ fontFamily: 'Consolas, monospace', color: '#C4B5FD' }}>_compute_confidence / _build_evidence</Text></Text>
+      </Box>
+    </Box>
+    <Box style={{ width: '50%', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+      <Box style={{ padding: '14px 18px', background: 'rgba(139,92,246,0.10)', borderRadius: 10, border: '1px solid rgba(139,92,246,0.4)' }}>
+        <Text style={{ fontSize: 17, color: '#C4B5FD', fontWeight: 'bold' }}>可信化关键设计</Text>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', marginTop: 8, lineHeight: 1.55 }}>LLM Critic 的「需修正」一律只标为<span style={{ color:'#8B5CF6', fontWeight:'bold' }}>分歧</span>，绝不覆盖规则判定；ai_checked 为 0 仅当规则发现硬伤。</Text>
+      </Box>
+      <Box style={{ padding: '14px 18px', background: 'rgba(6,182,212,0.08)', borderRadius: 10, border: '1px dashed rgba(6,182,212,0.4)' }}>
+        <Text style={{ fontSize: 17, color: '#67E8F9', fontWeight: 'bold' }}>化学域网关</Text>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', marginTop: 8, lineHeight: 1.55 }}>非化学领域输入一律判 <Text style={{ fontFamily: 'Consolas, monospace', color:'#93C5FD' }}>NONE</Text>，绝不越界误报——真正的化学违规几乎都含化学词，不会漏判。</Text>
+      </Box>
+    </Box>
+  </Box>
+  <Box style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14, padding: '0 18px', background: 'linear-gradient(90deg, rgba(139,92,246,0.18), rgba(59,130,246,0.06))', borderRadius: 10, border: '1px solid rgba(139,92,246,0.35)' }}>
+    <Text style={{ fontSize: 15, color: '#8B5CF6', fontWeight: 'bold' }}>答辩亮点</Text>
+    <Text style={{ fontSize: 17.5, color: '#E2E8F0' }}>每次推演都带置信度与证据链，结论可解释、可审计；模型再能说，也改不了规则定的等级。</Text>
+  </Box>
+  <Box style={{ height: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>实战避错系统 · 团队分工</Text>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>11 / 25</Text>
+  </Box>
+</Slide>

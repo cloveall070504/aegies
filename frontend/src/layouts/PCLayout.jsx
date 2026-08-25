@@ -75,7 +75,7 @@ export default function PCLayout({ children }) {
       <aside className="sidebar">
         <div className="sidebar-logo">
           <span className="sidebar-logo-icon">⚡</span>
-          AI实操避错系统
+          实战避错系统
         </div>
 
         {/* 当前身份（显眼角色徽标） */}

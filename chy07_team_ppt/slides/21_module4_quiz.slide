@@ -1,0 +1,44 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#0F172A', padding: '20px 64px', display: 'flex', flexDirection: 'column', fontFamily: 'Microsoft YaHei, sans-serif' }}>
+  <Box style={{ height: 80, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+    <Box style={{ width: 6, height: 38, background: 'linear-gradient(180deg, #3B82F6, #06B6D4)', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#E2E8F0' }}>模块四 · 题库与案例（陈松涛）</Text>
+    <Text style={{ fontSize: 16, color: '#3B82F6', marginLeft: 12, fontWeight: 'bold' }}>测认知 · 给警示</Text>
+  </Box>
+  <Box style={{ flex: 1, flexDirection: 'row', gap: 32, alignItems: 'stretch' }}>
+    <Box style={{ width: '57%', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+      <Box style={{ padding: '12px 16px', background: 'rgba(59,130,246,0.10)', borderRadius: 10, borderLeft: '4px solid #3B82F6' }}>
+        <Text style={{ fontSize: 19, color: '#E2E8F0', lineHeight: 1.5 }}>定位：提供<span style={{ color: '#3B82F6', fontWeight: 'bold' }}>自测与警示</span>两类训练素材。</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 14 }}>
+        <Box style={{ flex: 1, padding: '16px 18px', background: 'rgba(59,130,246,0.10)', borderRadius: 10, border: '1px solid rgba(59,130,246,0.35)' }}>
+          <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#93C5FD' }}>自测题库</Text>
+          <Text style={{ fontSize: 15, color: '#CBD5E1', marginTop: 8, lineHeight: 1.5 }}>quiz_question / quiz_record：测认知、留作答轨迹。</Text>
+        </Box>
+        <Box style={{ flex: 1, padding: '16px 18px', background: 'rgba(139,92,246,0.12)', borderRadius: 10, border: '1px solid rgba(139,92,246,0.4)' }}>
+          <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#C4B5FD' }}>事故案例</Text>
+          <Text style={{ fontSize: 15, color: '#CBD5E1', marginTop: 8, lineHeight: 1.5 }}>case_entry：真实事故复盘，给直击教训的警示。</Text>
+        </Box>
+      </Box>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.55 }}>• 题库检验「知不知道」，案例强化「怕不怕」——认知与敬畏双管齐下。</Text>
+      <Text style={{ fontSize: 16.5, color: '#94A3B8', lineHeight: 1.55 }}>• 案例库与仿真模块联动，推演时可拉真实事故做对照。</Text>
+    </Box>
+    <Box style={{ width: '43%', padding: '20px 22px', background: 'rgba(30,41,59,0.7)', borderRadius: 12, border: '1px solid rgba(59,130,246,0.35)', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
+      <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#93C5FD' }}>路由与模型</Text>
+      <Text style={{ fontSize: 15, color: '#E2E8F0', fontFamily: 'Consolas, monospace' }}>/quiz  /cases</Text>
+      <Text style={{ fontSize: 15, color: '#E2E8F0', fontFamily: 'Consolas, monospace' }}>quiz_question</Text>
+      <Text style={{ fontSize: 15, color: '#E2E8F0', fontFamily: 'Consolas, monospace' }}>quiz_record</Text>
+      <Text style={{ fontSize: 15, color: '#E2E8F0', fontFamily: 'Consolas, monospace' }}>case_entry</Text>
+      <Box style={{ marginTop: 6, padding: '10px 13px', background: 'rgba(139,92,246,0.10)', borderRadius: 8, border: '1px dashed rgba(139,92,246,0.4)' }}>
+        <Text style={{ fontSize: 14, color: '#C4B5FD' }}>题库测认知<br/>案例给警示</Text>
+      </Box>
+    </Box>
+  </Box>
+  <Box style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14, padding: '0 18px', background: 'linear-gradient(90deg, rgba(59,130,246,0.16), rgba(139,92,246,0.05))', borderRadius: 10, border: '1px solid rgba(59,130,246,0.35)' }}>
+    <Text style={{ fontSize: 15, color: '#3B82F6', fontWeight: 'bold' }}>答辩亮点</Text>
+    <Text style={{ fontSize: 17.5, color: '#E2E8F0' }}>题库测「知不知道」，案例给「直击教训」——认知与敬畏双管齐下，训练有抓手。</Text>
+  </Box>
+  <Box style={{ height: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>实战避错系统 · 团队分工</Text>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>21 / 25</Text>
+  </Box>
+</Slide>

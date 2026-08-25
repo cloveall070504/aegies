@@ -26,7 +26,7 @@ from app.config import settings  # noqa: E402
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="AI实操避错系统 · SQLite 热备")
+    ap = argparse.ArgumentParser(description="实战避错系统 · SQLite 热备")
     ap.add_argument("--keep", type=int, default=7, help="保留最近 N 份备份")
     ap.add_argument("--dest", type=str, default=None, help="备份输出目录")
     args = ap.parse_args()

@@ -18,6 +18,7 @@ class OperationRecord(Base):
     correction = Column(String(2048), default="")
     ai_checked = Column(Integer, default=1)  # 1=自检通过
     critic_divergence = Column(Integer, default=0)  # 0=无分歧, 1=模型 Critic 与规则引擎存在分歧（仅提示，不影响 ai_checked）
+    ai_provider = Column(String(16), default="")  # 本次推演使用的引擎：cloud=千问云端 / ollama=本地 / 空=纯规则
     source_refs = Column(String(4096), default="[]")  # JSON 条款溯源列表
     score_breakdown = Column(String(4096), default="[]")  # JSON 评分明细（A3 透明化：每步加分项）
     # ===== A2 学生错误回流闭环 =====
@@ -40,6 +41,7 @@ class OperationRecord(Base):
             "correction": self.correction,
             "ai_checked": self.ai_checked,
             "critic_divergence": int(self.critic_divergence or 0),
+            "ai_provider": self.ai_provider or "",
             "source_refs": self._parse_json(self.source_refs),
             "score_breakdown": self._parse_json(self.score_breakdown),
             "student_feedback": self.student_feedback or "",

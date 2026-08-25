@@ -1,0 +1,41 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#0F172A', padding: '20px 64px', display: 'flex', flexDirection: 'column', fontFamily: 'Microsoft YaHei, sans-serif' }}>
+  <Box style={{ height: 80, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+    <Box style={{ width: 6, height: 38, background: 'linear-gradient(180deg, #3B82F6, #06B6D4)', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#E2E8F0' }}>模块二 · 透明可解释评分（王天豪）</Text>
+    <Text style={{ fontSize: 16, color: '#06B6D4', marginLeft: 12, fontWeight: 'bold' }}>分数带明细，非黑箱</Text>
+  </Box>
+  <Box style={{ flex: 1, flexDirection: 'row', gap: 32, alignItems: 'stretch' }}>
+    <Box style={{ width: '57%', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+      <Box style={{ padding: '12px 16px', background: 'rgba(6,182,212,0.10)', borderRadius: 10, borderLeft: '4px solid #06B6D4' }}>
+        <Text style={{ fontSize: 19, color: '#E2E8F0', lineHeight: 1.5 }}>定位：把风险<span style={{ color: '#06B6D4', fontWeight: 'bold' }}>量化成可解释的分</span>，而非一句「有风险」。</Text>
+      </Box>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.55 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>compute_risk_score</span>：综合风险评分，总分由确定性规则算出。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.55 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>score_risk(refs, freq, behavior_len)</span>：单条风险独立打分，便于追溯。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.55 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>none_breakdown()</span>：无风险情形也给明细（A3 透明原则）。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.55 }}>• 输出携带 <span style={{ color:'#67E8F9' }}>score_breakdown</span> 评分明细，每分都有依据。</Text>
+    </Box>
+    <Box style={{ width: '43%', padding: '20px 22px', background: 'rgba(30,41,59,0.7)', borderRadius: 12, border: '1px solid rgba(6,182,212,0.35)', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
+      <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#67E8F9' }}>核心接口</Text>
+      <Box style={{ padding: '9px 13px', background: 'rgba(6,182,212,0.10)', borderRadius: 8 }}>
+        <Text style={{ fontSize: 15, color: '#E2E8F0', fontFamily: 'Consolas, monospace' }}>compute_risk_score(...)</Text>
+      </Box>
+      <Box style={{ padding: '9px 13px', background: 'rgba(6,182,212,0.10)', borderRadius: 8 }}>
+        <Text style={{ fontSize: 15, color: '#E2E8F0', fontFamily: 'Consolas, monospace' }}>score_risk(refs, freq)</Text>
+      </Box>
+      <Box style={{ padding: '9px 13px', background: 'rgba(6,182,212,0.10)', borderRadius: 8 }}>
+        <Text style={{ fontSize: 15, color: '#E2E8F0', fontFamily: 'Consolas, monospace' }}>none_breakdown()</Text>
+      </Box>
+      <Box style={{ marginTop: 4, padding: '10px 13px', background: 'rgba(139,92,246,0.10)', borderRadius: 8, border: '1px dashed rgba(139,92,246,0.4)' }}>
+        <Text style={{ fontSize: 14, color: '#C4B5FD' }}>输出 → score_breakdown<br/>可解释评分明细</Text>
+      </Box>
+    </Box>
+  </Box>
+  <Box style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14, padding: '0 18px', background: 'linear-gradient(90deg, rgba(6,182,212,0.16), rgba(59,130,246,0.05))', borderRadius: 10, border: '1px solid rgba(6,182,212,0.35)' }}>
+    <Text style={{ fontSize: 15, color: '#06B6D4', fontWeight: 'bold' }}>答辩亮点</Text>
+    <Text style={{ fontSize: 17.5, color: '#E2E8F0' }}>分数不是拍脑袋：总分 + 逐条明细，老师和学生都能看清「为什么扣这些分」。</Text>
+  </Box>
+  <Box style={{ height: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>实战避错系统 · 团队分工</Text>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>14 / 25</Text>
+  </Box>
+</Slide>

@@ -1,4 +1,4 @@
-"""AI实操避错系统 · FastAPI 应用入口
+"""实战避错系统 · FastAPI 应用入口
 
 启动：uvicorn app.main:app --reload --port 8001
 """
@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="AI实操避错系统 —— 基于反向RAG与双智能体校验的沉浸式风险实训平台",
+    description="实战避错系统 —— 基于反向RAG与双智能体校验的沉浸式风险实训平台",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -123,7 +123,7 @@ def root():
         "app": settings.APP_NAME,
         "docs": "/docs",
         "api_prefix": settings.API_V1_PREFIX,
-        "message": "AI实操避错系统后端已启动",
+        "message": "实战避错系统后端已启动",
     }
 
 

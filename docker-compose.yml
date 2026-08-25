@@ -1,4 +1,4 @@
-# AI实操避错系统 —— 一键编排（后端 + 前端 + PostgreSQL）
+# 实战避错系统 —— 一键编排（后端 + 前端 + PostgreSQL）
 # 用法：
 #   docker compose up --build
 #   - 前端：  http://localhost:8080  （nginx 反代 /api 到 backend:8000）

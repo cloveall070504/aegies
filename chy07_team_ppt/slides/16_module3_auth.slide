@@ -1,0 +1,46 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#0F172A', padding: '20px 64px', display: 'flex', flexDirection: 'column', fontFamily: 'Microsoft YaHei, sans-serif' }}>
+  <Box style={{ height: 80, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+    <Box style={{ width: 6, height: 38, background: 'linear-gradient(180deg, #3B82F6, #06B6D4)', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#E2E8F0' }}>模块三 · 鉴权基座（朱帅铭）</Text>
+    <Text style={{ fontSize: 16, color: '#06B6D4', marginLeft: 12, fontWeight: 'bold' }}>系统的门禁</Text>
+  </Box>
+  <Box style={{ flex: 1, flexDirection: 'row', gap: 32, alignItems: 'center' }}>
+    <Box style={{ width: '47%', flexDirection: 'column', justifyContent: 'center', gap: 13 }}>
+      <Box style={{ padding: '12px 16px', background: 'rgba(6,182,212,0.10)', borderRadius: 10, borderLeft: '4px solid #06B6D4' }}>
+        <Text style={{ fontSize: 19, color: '#E2E8F0', lineHeight: 1.5 }}>定位：全系统的<span style={{ color: '#06B6D4', fontWeight: 'bold' }}>身份认证与权限闸门</span>。</Text>
+      </Box>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.5 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>auth.py</span>：登录 JWT 签发与校验，凭证不出服务端。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.5 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>deps.py · get_current_user</span>：FastAPI 依赖注入，受保护接口自动鉴权。</Text>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.5 }}>• <span style={{ color: '#3B82F6', fontWeight: 'bold' }}>多角色隔离</span>：管理员 / 教师 / 学生，权限随 JWT 注入每个请求。</Text>
+      <Text style={{ fontSize: 16.5, color: '#94A3B8', lineHeight: 1.5 }}>开发者写业务接口时只需声明依赖，鉴权自动生效。</Text>
+    </Box>
+    <Box style={{ width: '53%', justifyContent: 'center', alignItems: 'center' }}>
+      <svg width='500' height='320' viewBox='0 0 500 320'>
+        <defs>
+          <marker id='ar16' markerWidth='9' markerHeight='9' refX='7' refY='3' orient='auto'>
+            <path d='M0,0 L7,3 L0,6 Z' fill='#64748B' />
+          </marker>
+        </defs>
+        <rect x='90' y='14' width='320' height='52' rx='10' fill='#1E293B' stroke='#06B6D4' strokeWidth='2' />
+        <text x='250' y='38' textAnchor='middle' fill='#E2E8F0' fontSize='15' fontWeight='bold'>登录 / 鉴权 auth.py</text>
+        <text x='250' y='56' textAnchor='middle' fill='#94A3B8' fontSize='12'>JWT 签发与校验 · 门禁</text>
+        <rect x='90' y='120' width='320' height='52' rx='10' fill='#1E293B' stroke='#06B6D4' strokeWidth='2' />
+        <text x='250' y='144' textAnchor='middle' fill='#E2E8F0' fontSize='15' fontWeight='bold'>get_current_user deps.py</text>
+        <text x='250' y='162' textAnchor='middle' fill='#94A3B8' fontSize='12'>受保护接口依赖注入</text>
+        <rect x='150' y='226' width='200' height='52' rx='10' fill='#1E293B' stroke='#8B5CF6' strokeWidth='2' />
+        <text x='250' y='250' textAnchor='middle' fill='#E2E8F0' fontSize='15' fontWeight='bold'>业务接口</text>
+        <text x='250' y='268' textAnchor='middle' fill='#C4B5FD' fontSize='12'>自动获得当前用户</text>
+        <line x1='250' y1='66' x2='250' y2='120' stroke='#64748B' strokeWidth='2' markerEnd='url(#ar16)' />
+        <line x1='250' y1='172' x2='250' y2='226' stroke='#64748B' strokeWidth='2' markerEnd='url(#ar16)' />
+      </svg>
+    </Box>
+  </Box>
+  <Box style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14, padding: '0 18px', background: 'linear-gradient(90deg, rgba(6,182,212,0.16), rgba(139,92,246,0.05))', borderRadius: 10, border: '1px solid rgba(6,182,212,0.35)' }}>
+    <Text style={{ fontSize: 15, color: '#06B6D4', fontWeight: 'bold' }}>答辩亮点</Text>
+    <Text style={{ fontSize: 17.5, color: '#E2E8F0' }}>每个受保护接口都经 JWT 鉴权，权限随请求注入——业务代码零改造即可获得安全闸门。</Text>
+  </Box>
+  <Box style={{ height: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>实战避错系统 · 团队分工</Text>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>16 / 25</Text>
+  </Box>
+</Slide>

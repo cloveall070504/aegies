@@ -1,0 +1,51 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#0F172A', padding: '20px 64px', display: 'flex', flexDirection: 'column', fontFamily: 'Microsoft YaHei, sans-serif' }}>
+  <Box style={{ height: 80, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+    <Box style={{ width: 6, height: 38, background: 'linear-gradient(180deg, #3B82F6, #06B6D4)', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#E2E8F0' }}>模块五 · 公共核心与驾驶舱（陈浩研）</Text>
+    <Text style={{ fontSize: 16, color: '#8B5CF6', marginLeft: 12, fontWeight: 'bold' }}>一眼看清全局</Text>
+  </Box>
+  <Box style={{ flex: 1, flexDirection: 'row', gap: 32, alignItems: 'stretch' }}>
+    <Box style={{ width: '57%', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+      <Box style={{ padding: '12px 16px', background: 'rgba(139,92,246,0.12)', borderRadius: 10, borderLeft: '4px solid #8B5CF6' }}>
+        <Text style={{ fontSize: 19, color: '#E2E8F0', lineHeight: 1.5 }}>定位：提供<span style={{ color: '#8B5CF6', fontWeight: 'bold' }}>公共能力</span>与<span style={{ color: '#8B5CF6', fontWeight: 'bold' }}>管理驾驶舱</span>。</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        <Box style={{ width: '47%', padding: '13px 15px', background: 'rgba(139,92,246,0.10)', borderRadius: 10, border: '1px solid rgba(139,92,246,0.35)' }}>
+          <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#C4B5FD' }}>core 公共核心</Text>
+          <Text style={{ fontSize: 14, color: '#CBD5E1', marginTop: 5 }}>cache / ratelimit / logging</Text>
+        </Box>
+        <Box style={{ width: '47%', padding: '13px 15px', background: 'rgba(139,92,246,0.10)', borderRadius: 10, border: '1px solid rgba(139,92,246,0.35)' }}>
+          <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#C4B5FD' }}>系统路由</Text>
+          <Text style={{ fontSize: 14, color: '#CBD5E1', marginTop: 5 }}>健康检查 / 配置</Text>
+        </Box>
+        <Box style={{ width: '47%', padding: '13px 15px', background: 'rgba(6,182,212,0.10)', borderRadius: 10, border: '1px solid rgba(6,182,212,0.35)' }}>
+          <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#67E8F9' }}>仪表盘</Text>
+          <Text style={{ fontSize: 14, color: '#CBD5E1', marginTop: 5 }}>汇总各模块运行数据</Text>
+        </Box>
+        <Box style={{ width: '47%', padding: '13px 15px', background: 'rgba(6,182,212,0.10)', borderRadius: 10, border: '1px solid rgba(6,182,212,0.35)' }}>
+          <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#67E8F9' }}>反馈路由</Text>
+          <Text style={{ fontSize: 14, color: '#CBD5E1', marginTop: 5 }}>用户意见回收</Text>
+        </Box>
+      </Box>
+      <Text style={{ fontSize: 16.5, color: '#CBD5E1', lineHeight: 1.55 }}>• 驾驶舱把分散的模块数据汇成一眼可看的全局视图。</Text>
+    </Box>
+    <Box style={{ width: '43%', padding: '20px 22px', background: 'rgba(30,41,59,0.7)', borderRadius: 12, border: '1px solid rgba(139,92,246,0.35)', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
+      <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#C4B5FD' }}>驾驶舱能力</Text>
+      <Text style={{ fontSize: 15, color: '#E2E8F0' }}>• 各模块调用量与延迟</Text>
+      <Text style={{ fontSize: 15, color: '#E2E8F0' }}>• 风险判定分布</Text>
+      <Text style={{ fontSize: 15, color: '#E2E8F0' }}>• 学员培训进度</Text>
+      <Text style={{ fontSize: 15, color: '#E2E8F0' }}>• 引擎健康度</Text>
+      <Box style={{ marginTop: 6, padding: '10px 13px', background: 'rgba(6,182,212,0.10)', borderRadius: 8, border: '1px dashed rgba(6,182,212,0.4)' }}>
+        <Text style={{ fontSize: 14, color: '#67E8F9' }}>全局健康度<br/>一屏掌握</Text>
+      </Box>
+    </Box>
+  </Box>
+  <Box style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14, padding: '0 18px', background: 'linear-gradient(90deg, rgba(139,92,246,0.18), rgba(59,130,246,0.06))', borderRadius: 10, border: '1px solid rgba(139,92,246,0.35)' }}>
+    <Text style={{ fontSize: 15, color: '#8B5CF6', fontWeight: 'bold' }}>答辩亮点</Text>
+    <Text style={{ fontSize: 17.5, color: '#E2E8F0' }}>公共核心避免重复造轮子，管理驾驶舱让老师/管理员一屏掌握全局运行与培训健康度。</Text>
+  </Box>
+  <Box style={{ height: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>实战避错系统 · 团队分工</Text>
+    <Text style={{ fontSize: 14, color: '#64748B' }}>23 / 25</Text>
+  </Box>
+</Slide>
