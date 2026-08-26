@@ -22,6 +22,7 @@ from app.models.user import User
 from app.services.prompt_service import seed_default_templates
 from app.services.rag_service import RAGService, ollama_status
 from app.api.v1.scene_system import _seed_scenes
+from app.services.seed_content import seed_cases, seed_quiz
 
 # 默认账号（首次启动写入，幂等）
 DEFAULT_ACCOUNTS = [
@@ -40,10 +41,12 @@ async def lifespan(app: FastAPI):
     init_db()
     db = SessionLocal()
     try:
-        # 种子数据：Prompt 模板 + 内置风险点 + 场景+步骤
+        # 种子数据：Prompt 模板 + 内置风险点 + 场景+步骤 + 案例+题库
         seed_default_templates(db)
         RAGService(db).seed_risk_points()
         _seed_scenes(db)
+        seed_cases(db)
+        seed_quiz(db)
         # 默认账号
         for username, pwd, role, dept, display in DEFAULT_ACCOUNTS:
             if not db.query(User).filter(User.username == username).first():
