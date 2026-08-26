@@ -101,6 +101,15 @@ export const submitFeedback = (recordId, feedback, isMisjudge) =>
 export const listPendingFeedback = (params) => client.get('/feedback/pending', { params: params || {} })
 export const resolveFeedback = (recordId, action) => client.post(`/feedback/${recordId}/resolve`, { action })
 
+// 学习中心（个性化弱项推荐 + 闯关路径）与消息中心
+export const getLearningOverview = () => client.get('/learning/overview')
+export const getReviewDue = () => client.get('/learning/review/due')
+export const completeReview = (itemId, sceneCode) =>
+  client.post('/learning/review/complete', { item_id: itemId, scene_code: sceneCode })
+export const getNotifications = () => client.get('/notifications')
+export const markNotificationRead = (id) => client.post(`/notifications/${id}/read`)
+export const markAllNotificationsRead = () => client.post('/notifications/read-all')
+
 // 统一解包辅助：响应拦截器已把 {code,message,data} 解包为 body.data，
 // 但不同接口 data 形态不一（数组 / {list,total} / {items}），历史代码出现过
 // d / d.data 混写。统一复用 asList / asData，避免按字段名猜测、防止该问题复发。

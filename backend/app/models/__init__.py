@@ -14,6 +14,7 @@ from app.models.scene import Scene
 from app.models.scene_step import SceneStep
 from app.models.training import TrainingRecord
 from app.models.assignment import Assignment, AssignmentProgress
+from app.models.learning import ReviewItem, Notification
 
 __all__ = [
     "User",
@@ -32,4 +33,6 @@ __all__ = [
     "TrainingRecord",
     "Assignment",
     "AssignmentProgress",
+    "ReviewItem",
+    "Notification",
 ]

@@ -850,6 +850,24 @@ select option:hover, select option:checked { background-color: var(--primary-wea
 .hud-bar__scene { color: var(--primary); font-weight: 600; white-space: nowrap; }
 .hud-bar__clock { color: var(--text-2); white-space: nowrap; }
 
+/* 通知铃铛 + 未读红点 */
+.hud-bell {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--card); color: var(--text); cursor: pointer;
+  transition: border-color 0.2s var(--ease), transform 0.15s var(--ease);
+}
+.hud-bell:hover { border-color: var(--primary); transform: translateY(-1px); }
+.hud-bell__dot {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 999px; background: var(--red); color: #fff;
+  font-size: 11px; font-weight: 700; line-height: 17px; text-align: center;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
 /* ============================================================
    Hero / 欢迎区（更精致）
    ============================================================ */

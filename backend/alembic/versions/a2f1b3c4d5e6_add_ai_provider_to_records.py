@@ -5,7 +5,7 @@
 避免「实时显示千问云端、历史却误标 Ollama 增强」的对冲观感。
 
 Revision ID: a2f1b3c4d5e6
-Revises: 9a1b2c3d4e5f
+Revises: a1b2c3d4e5f7
 Create Date: 2026-08-25 10:30:00.000000
 
 """
@@ -17,7 +17,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'a2f1b3c4d5e6'
-down_revision: Union[str, Sequence[str], None] = '9a1b2c3d4e5f'
+down_revision: Union[str, Sequence[str], None] = 'a1b2c3d4e5f7'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

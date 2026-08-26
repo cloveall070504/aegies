@@ -11,6 +11,7 @@ env/
 *.db-wal
 *.db-shm
 backend/*.db.*.bak
+*.bak
 backend/data/
 !backend/data/.gitkeep
 
@@ -21,6 +22,7 @@ backend/.env
 
 # 本地备份/虚拟环境副本（非版本控制）
 .venv_bak/
+frontend/tmp/
 
 # Node
 node_modules/
