@@ -70,6 +70,96 @@ BUILTIN_CASES: list[dict] = [
         "scene_type": "chem_lab",
         "analysis": "液体暴沸可能喷溅，试管口朝向自己或他人极易造成烫伤。加热时应使试管口斜向上、朝向无人处，且不越过试管容积的 1/3。",
     },
+    {
+        "behavior": "制取气体结束时先熄灭酒精灯，未先撤导管",
+        "risk_level": "high",
+        "frequency": 6,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "先灭灯会导致装置冷却形成负压，水槽中的水倒吸入灼热试管底部，极易炸裂。应遵循『先撤导管、后灭灯』。",
+    },
+    {
+        "behavior": "加热烧杯中的液体时未垫石棉网",
+        "risk_level": "medium",
+        "frequency": 10,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "烧杯底部受热不均容易炸裂。加热烧杯、锥形瓶等必须垫石棉网，使受热均匀。",
+    },
+    {
+        "behavior": "直接凑近瓶口闻试剂气味",
+        "risk_level": "high",
+        "frequency": 11,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "直接凑近闻可能吸入大量有毒/刺激性气体。正确方法是用手在瓶口轻轻扇动，使少量气体飘向鼻孔。",
+    },
+    {
+        "behavior": "将取出的多余试剂倒回原试剂瓶",
+        "risk_level": "medium",
+        "frequency": 8,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "回倒试剂会污染整瓶药品，可能引发不可预知的反应。多余试剂应倒入指定废液容器或按规定处置。",
+    },
+    {
+        "behavior": "使用标签已模糊不清的试剂瓶",
+        "risk_level": "high",
+        "frequency": 7,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "标签不清无法确认成分，误用可能造成剧烈反应或中毒。应重新确认或按废弃试剂处理，严禁盲目使用。",
+    },
+    {
+        "behavior": "在普通台面上倾倒挥发性浓盐酸，未在通风橱操作",
+        "risk_level": "medium",
+        "frequency": 9,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "挥发性、有毒或刺激性试剂必须在通风橱内操作，避免有害气体在室内积聚伤害呼吸系统。",
+    },
+    {
+        "behavior": "蒸馏操作中未加沸石直接加热",
+        "risk_level": "high",
+        "frequency": 4,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "不加沸石液体易暴沸冲出甚至炸裂烧瓶。蒸馏前必须加入碎瓷片/沸石提供汽化中心，且中途不得补加。",
+    },
+    {
+        "behavior": "容量瓶定容时俯视读数",
+        "risk_level": "low",
+        "frequency": 6,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "俯视读数会使实际体积偏小、浓度偏高。定容必须平视凹液面最低处与刻度线相切，保证准确。",
+    },
+    {
+        "behavior": "实验结束后未关闭水、电、气源便离开实验室",
+        "risk_level": "high",
+        "frequency": 5,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "无人值守的明火、通电设备或泄漏的燃气是重大火灾隐患。离开前必须逐一确认水、电、气已关闭。",
+    },
+    {
+        "behavior": "向燃着的酒精灯中添加酒精",
+        "risk_level": "high",
+        "frequency": 6,
+        "status": "approved",
+        "source": "seed",
+        "scene_type": "chem_lab",
+        "analysis": "酒精灯燃烧时添加酒精，易引燃灯内酒精蒸气造成爆燃或火焰喷出伤人。添加酒精必须先熄灭并冷却。",
+    },
 ]
 
 # ============ 自测题库（choice / judge / sequence） ============
@@ -151,20 +241,26 @@ BUILTIN_QUIZ: list[dict] = [
 
 
 def seed_cases(db: Session) -> int:
-    """内置案例（表为空时写入），返回写入条数。"""
-    if db.query(CaseEntry).count() > 0:
-        return 0
+    """内置案例：按行为逐条补缺（已存在的跳过），返回新增条数。"""
+    existing = {c.behavior for c in db.query(CaseEntry).all()}
+    added = 0
     for item in BUILTIN_CASES:
-        db.add(CaseEntry(**item))
+        if item["behavior"] not in existing:
+            db.add(CaseEntry(**item))
+            existing.add(item["behavior"])
+            added += 1
     db.flush()
-    return len(BUILTIN_CASES)
+    return added
 
 
 def seed_quiz(db: Session) -> int:
-    """内置自测题（表为空时写入），返回写入条数。"""
-    if db.query(QuizQuestion).count() > 0:
-        return 0
+    """内置自测题：按题干逐条补缺（已存在的跳过），返回新增条数。"""
+    existing = {q.question for q in db.query(QuizQuestion).all()}
+    added = 0
     for item in BUILTIN_QUIZ:
-        db.add(QuizQuestion(**item))
+        if item["question"] not in existing:
+            db.add(QuizQuestion(**item))
+            existing.add(item["question"])
+            added += 1
     db.flush()
-    return len(BUILTIN_QUIZ)
+    return added
