@@ -88,10 +88,6 @@ export default function ScenarioInfer() {
     () => (result ? highlightClauses(result.consequence, result.source_refs) : null),
     [result]
   )
-  const correctionParts = useMemo(
-    () => (result ? highlightClauses(result.correction, result.source_refs) : null),
-    [result]
-  )
 
   return (
     <div>
@@ -265,17 +261,16 @@ export default function ScenarioInfer() {
               <div className="card">
                 <h3 className="section-title"><span className="dot" />纠错步骤</h3>
                 <div style={{ lineHeight: 1.9 }}>
-                  {String(correctionParts || '').split('\n').filter(Boolean).length === 0
-                    ? correctionParts
-                    : Array.isArray(correctionParts)
-                      ? correctionParts
-                      : String(correctionParts).split('\n').filter(Boolean).map((step, i) => (
-                          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-                            <span className="step-badge">{i + 1}</span>
-                            <span>{step}</span>
-                          </div>
-                        ))
-                  }
+                  {String(result?.correction || '').split('\n').filter(Boolean).length === 0 ? (
+                    <span className="muted">暂无纠错步骤</span>
+                  ) : (
+                    String(result.correction).split('\n').filter(Boolean).map((line, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                        <span className="step-badge">{i + 1}</span>
+                        <span style={{ whiteSpace: 'pre-wrap' }}>{highlightClauses(line, result.source_refs)}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 

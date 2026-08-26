@@ -121,12 +121,23 @@ async def simulate_step(db: Session, step: str, scene_id: str = "", history: Opt
         hits = _keyword_hits(step)
         refs = res.get("source_refs", [])
         ref_level = _ref_based_level(step, refs)
+        # 降级后的分数以目标等级为基线 + 关键词加成 + 长度修正；
+        # 避免 RAG 误匹配（如"正确稀释浓硫酸"匹配到"将水倒入浓硫酸"高危条款）
+        # 把安全操作重新拉回高分。
+        base = {"high": 75.0, "medium": 45.0, "low": 20.0}[new_level]
+        bonus = min(len(hits.get("high", [])), 4) * 5 + min(len(hits.get("medium", [])), 4) * 4
+        score = max(5, min(100, round(base + bonus + min(len(step), 30) * 0.2, 1)))
         res["level"] = new_level
-        res["consequence"] = _consequence_text(step, new_level, hits, refs)
-        res["correction"] = _correction_text(step, new_level, hits, refs)
-        res["confidence"] = _compute_confidence(new_level, hits, refs, ref_level)
+        res["risk_score"] = score
+        res["score_breakdown"] = [
+            {"factor": "安全语境修正后基线分", "detail": f"修正为{new_level}风险", "delta": base},
+            {"factor": "关键词命中加成", "detail": f"高危{len(hits.get('high', []))} 中危{len(hits.get('medium', []))}", "delta": bonus},
+            {"factor": "行为描述长度修正", "detail": f"{min(len(step), 30)} 字", "delta": round(min(len(step), 30) * 0.2, 1)},
+        ]
+        res["consequence"] = _consequence_text(step, res["level"], hits, refs)
+        res["correction"] = _correction_text(step, res["level"], hits, refs)
+        res["confidence"] = _compute_confidence(res["level"], hits, refs, ref_level)
         res["evidence"] = _build_evidence(step, hits, refs, ref_level, _is_domain_input(step))
-        res["risk_score"] = 20.0 if new_level == "low" else 8.0
 
     # 2) 叠加扫描能力：关联案例 + 匹配条款（与 scan 一致）
     res["related_case_ids"] = _related_case_ids(db, step)

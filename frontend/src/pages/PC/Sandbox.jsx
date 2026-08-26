@@ -340,7 +340,6 @@ export default function Sandbox() {
               const r = entry.result
               const isLast = idx === timeline.length - 1
               const consParts = highlightClauses(r.consequence, r.source_refs)
-              const corrParts = highlightClauses(r.correction, r.source_refs)
               return (
                 <div className="card risk-card" key={idx} data-level={r.level} style={{ marginBottom: 0 }}>
                   <div className="risk-card-head">
@@ -384,15 +383,32 @@ export default function Sandbox() {
                   <div style={{ marginTop: 12 }}>
                     <h3 className="section-title"><span className="dot" />纠错步骤</h3>
                     <div style={{ lineHeight: 1.9 }}>
-                      {String(corrParts || '').split('\n').filter(Boolean).length === 0 ? corrParts : (
-                        String(corrParts).split('\n').filter(Boolean).map((s, i) => (
+                      {String(r.correction || '').split('\n').filter(Boolean).length === 0 ? (
+                        <span className="muted">暂无纠错步骤</span>
+                      ) : (
+                        String(r.correction).split('\n').filter(Boolean).map((line, i) => (
                           <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-                            <span className="step-badge">{i + 1}</span><span>{s}</span>
+                            <span className="step-badge">{i + 1}</span>
+                            <span style={{ whiteSpace: 'pre-wrap' }}>{highlightClauses(line, r.source_refs)}</span>
                           </div>
                         ))
                       )}
                     </div>
                   </div>
+
+                  {/* 依据条款单独展示，避免与纠错步骤混淆或重复 */}
+                  {(r.source_refs || []).length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <h3 className="section-title"><span className="dot" />依据条款</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {r.source_refs.slice(0, 2).map((ref, i) => (
+                          <div key={i} style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                            {ref.clause_ref}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <EvidenceBlock result={r} />
 
