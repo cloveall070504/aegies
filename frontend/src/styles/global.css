@@ -553,6 +553,15 @@ select option:hover, select option:checked { background-color: var(--primary-wea
   box-shadow: var(--shadow-xs);
 }
 
+/* 页头内的紧凑搜索栏：替代被 inline-style 覆盖的 .toolbar */
+.search-bar {
+  display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.search-bar .input {
+  width: 240px;
+  flex: 0 0 auto;
+}
+
 /* ============================================================
    统计 / KPI 卡片
    ============================================================ */
@@ -636,11 +645,14 @@ select option:hover, select option:checked { background-color: var(--primary-wea
    风险卡片
    ============================================================ */
 .risk-card {
-  border-left: 4px solid var(--green) !important;
+  border-left: 3px solid var(--green) !important;
   position: relative;
+  transition: border-left-color .2s ease;
 }
-.risk-card[data-level='high'] { border-left-color: var(--red) !important; animation: pulseHigh 2.6s ease-in-out infinite; }
+.risk-card[data-level='high']   { border-left-color: var(--red) !important; }
 .risk-card[data-level='medium'] { border-left-color: var(--yellow) !important; }
+.risk-card[data-level='low'],
+.risk-card[data-level='none']  { border-left-color: var(--green) !important; }
 .risk-card-head {
   display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
 }
@@ -979,38 +991,47 @@ select option:hover, select option:checked { background-color: var(--primary-wea
   border-radius: var(--r);
   padding: 6px;
   box-shadow: var(--shadow-sm);
+  color: var(--text);
   animation: fadeInUp 0.22s var(--ease) both;
 }
-.scene-dropdown { top: 100%; left: 0; margin-top: 6px; min-width: 280px; max-height: 360px; }
-.scene-dropdown-list { top: 100%; left: 0; margin-top: 6px; min-width: 220px; max-height: 320px; border-radius: var(--r-sm); padding: 4px; }
+.scene-dropdown { top: 100%; left: 0; margin-top: 8px; min-width: 280px; max-height: 360px; }
+.scene-dropdown-list { top: 100%; left: 0; margin-top: 8px; min-width: 260px; max-width: 360px; max-height: 320px; border-radius: var(--r-sm); padding: 5px; }
 
 .scene-dropdown-item {
   position: relative;
-  width: 100%; text-align: left; border: none; color: inherit; cursor: pointer;
+  width: 100%; text-align: left; border: none; color: var(--text); cursor: pointer;
   background: transparent; display: flex; gap: 8px; align-items: center;
-  padding: 8px 10px; border-radius: var(--r-xs); font-size: 13px;
+  padding: 9px 12px; border-radius: var(--r-xs); font-size: 13.5px;
   transition: background 0.18s var(--ease), color 0.18s var(--ease);
 }
 .scene-dropdown-item:hover,
 .scene-dropdown-item:focus-visible {
   background: var(--primary-weak); color: var(--text); outline: none;
 }
+.scene-dropdown-item:active {
+  background: rgba(34, 211, 238, 0.20); transform: none;
+}
 .scene-dropdown-item.active,
 .scene-dropdown-item.active:hover,
 .scene-dropdown-item.active:focus-visible {
-  color: #fff;
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  box-shadow: 0 5px 14px -12px var(--primary), inset 0 1px 0 rgba(255,255,255,0.12);
+  color: var(--text);
+  background: rgba(34, 211, 238, 0.22);
   font-weight: 600;
-  transform: translateX(2px);
 }
 .scene-dropdown-item.active::before {
   content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-  width: 4px; height: 20px; border-radius: 0 4px 4px 0;
-  background: linear-gradient(180deg, #fff, rgba(255,255,255,0.6));
+  width: 3px; height: 18px; border-radius: 0 3px 3px 0;
+  background: var(--primary);
+}
+.scene-dropdown-icon {
+  flex: 0 0 auto;
+  width: 22px;
+  text-align: center;
+  font-size: 1.15em;
+  line-height: 1;
 }
 .scene-check { color: var(--green); font-weight: 700; font-size: 12px; }
-.scene-dropdown-item.active .scene-check { color: rgba(255,255,255,0.92); }
+.scene-dropdown-item.active .scene-check { color: var(--green); }
 
 /* ============================================================
    进度条

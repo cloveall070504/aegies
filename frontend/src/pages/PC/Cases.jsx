@@ -60,10 +60,9 @@ export default function Cases() {
         title="错误案例库"
         desc="真实踩坑案例沉淀，可一键推演或查看 AI 讲解"
         actions={
-          <div className="toolbar" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none' }}>
+          <div className="search-bar">
             <input
               className="input"
-              style={{ maxWidth: 280 }}
               placeholder="搜索行为关键词"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}

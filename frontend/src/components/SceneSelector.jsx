@@ -52,7 +52,7 @@ export default function SceneSelector({ compact = false, variant = 'default' }) 
 
   if (compact) {
     return (
-      <div className="scene-selector compact" style={{ position: 'relative', display: 'inline-block' }}>
+      <div className="scene-selector compact" style={{ position: 'relative', display: 'inline-block', zIndex: open ? 60 : 'auto' }}>
         <button className="scene-trigger scene-trigger--sm" onClick={() => setOpen(!open)}>
           <span className="scene-trigger__icon">{currentScene?.icon}</span>
           <span className="scene-trigger__name">{currentScene?.name || '选择场景'}</span>
@@ -67,7 +67,7 @@ export default function SceneSelector({ compact = false, variant = 'default' }) 
 
   // default variant：大卡片式，带场景详情和入口
   return (
-    <div className="card" style={{ padding: 14 }}>
+    <div className="card" style={{ padding: 14, position: 'relative', zIndex: open ? 60 : 'auto' }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative' }}>
           <button
@@ -80,18 +80,17 @@ export default function SceneSelector({ compact = false, variant = 'default' }) 
           </button>
           {loading && <span className="spinner" />}
           {open && (
-            <div className="scene-dropdown scene-dropdown-panel" style={{ position: 'absolute', top: '100%', left: 0, marginTop: 6, zIndex: 50, minWidth: 280, maxHeight: 360, overflowY: 'auto' }}>
+            <div className="scene-dropdown scene-dropdown-panel">
               {scenes.length === 0 && <div className="muted" style={{ padding: 10 }}>场景加载中…</div>}
               {scenes.map((s) => (
                 <button
                   key={s.scene_code}
                   className={`scene-dropdown-item ${s.scene_code === currentScene?.scene_code ? 'active' : ''}`}
                   onClick={() => onPick(s)}
-                  style={{ display: 'flex', gap: 8, alignItems: 'center' }}
                 >
-                  <span style={{ fontSize: 18 }}>{s.icon}</span>
+                  <span className="scene-dropdown-icon">{s.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }} title={s.name}>{s.name}</div>
                     <div className="muted" style={{ fontSize: 11 }}>
                       {s.builtin ? '内置场景' : '自定义'} · 化学实验
                     </div>
@@ -128,28 +127,15 @@ export default function SceneSelector({ compact = false, variant = 'default' }) 
 function DropdownList({ scenes, current, loading, onPick }) {
   if (loading) return <div className="scene-dropdown-list"><div className="skeleton" style={{ height: 30 }} /></div>
   return (
-    <div
-      className="scene-dropdown-list scene-dropdown-panel"
-      style={{
-        position: 'absolute',
-        top: '100%',
-        left: 0,
-        marginTop: 6,
-        minWidth: 220,
-        maxHeight: 320,
-        overflowY: 'auto',
-        zIndex: 50,
-      }}
-    >
+    <div className="scene-dropdown-list scene-dropdown-panel">
       {scenes.map((s) => (
         <button
           key={s.scene_code}
           className={`scene-dropdown-item ${s.scene_code === current?.scene_code ? 'active' : ''}`}
           onClick={() => onPick(s)}
-          style={{ display: 'flex', gap: 8, alignItems: 'center' }}
         >
-          <span>{s.icon}</span>
-          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
+          <span className="scene-dropdown-icon">{s.icon}</span>
+          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={s.name}>{s.name}</span>
           {s.scene_code === current?.scene_code && <span className="scene-check">✓</span>}
         </button>
       ))}

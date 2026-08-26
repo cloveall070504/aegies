@@ -4,14 +4,8 @@ import ScoreGauge from '../../components/ScoreGauge'
 import PageHead from '../../components/PageHead'
 import { useSceneName } from '../../hooks/useSceneType'
 import { useDashboard } from '../../hooks/useDashboard'
-import { listAssignments, asList, getReviewDue, getLearningOverview } from '../../api'
+import { listAssignments, asList } from '../../api'
 import useAuthStore from '../../store/authStore'
-
-const LEVEL_META = {
-  high: { label: '高危', color: 'var(--red)', bg: 'var(--red-bg, rgba(239,68,68,0.16))', border: 'var(--red)' },
-  medium: { label: '中危', color: '#f59e0b', bg: 'rgba(245,158,11,0.16)', border: '#f59e0b' },
-  low: { label: '低危', color: '#22c55e', bg: 'rgba(34,197,94,0.16)', border: '#22c55e' },
-}
 
 export default function StudentHome() {
   const { user } = useAuthStore()
@@ -19,8 +13,6 @@ export default function StudentHome() {
   const sceneName = useSceneName()
   const { data, error } = useDashboard()
   const [pending, setPending] = useState(0)
-  const [dueCount, setDueCount] = useState(0)
-  const [recommended, setRecommended] = useState([])
 
   useEffect(() => {
     listAssignments('active')
@@ -29,18 +21,6 @@ export default function StudentHome() {
         setPending(mine.length)
       })
       .catch(() => setPending(0))
-  }, [])
-
-  useEffect(() => {
-    getReviewDue()
-      .then((d) => setDueCount(d?.count || 0))
-      .catch(() => setDueCount(0))
-  }, [])
-
-  useEffect(() => {
-    getLearningOverview()
-      .then((d) => setRecommended((d?.recommended || []).slice(0, 3)))
-      .catch(() => setRecommended([]))
   }, [])
 
   if (error) return <div className="card" style={{ color: 'var(--red)' }}>加载失败：{error}</div>
@@ -71,52 +51,6 @@ export default function StudentHome() {
           <span className="badge">去完成 →</span>
         </div>
       )}
-
-      {/* 待复习提醒（间隔重复） */}
-      {dueCount > 0 && (
-        <div
-          className="alert alert-error"
-          style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', marginTop: 12 }}
-          onClick={() => navigate('/notifications')}
-        >
-          <span style={{ fontSize: 22 }}>🔁</span>
-          <div style={{ flex: 1 }}>
-            <strong>你有 {dueCount} 道错题待复习</strong>
-            <div style={{ fontSize: 12, opacity: 0.85 }}>间隔复习能显著降低遗忘，点击前往巩固</div>
-          </div>
-          <span className="badge">去复习 →</span>
-        </div>
-      )}
-
-      {/* 个性化弱项提醒（来自学习中心推荐） */}
-      <div className="card" style={{ marginTop: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h3 className="section-title" style={{ margin: 0 }}><span className="dot" />你的个性化弱项</h3>
-          <button className="btn-outline chip-btn" style={{ marginLeft: 'auto' }} onClick={() => navigate('/learning')}>查看学习路径 →</button>
-        </div>
-        {recommended.length === 0 ? (
-          <div className="empty" style={{ padding: '18px 0' }}><div className="empty-icon">🌟</div><div className="empty-text">暂无弱项提醒，保持得很好！</div></div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-            {recommended.map((rp) => {
-              const m = LEVEL_META[rp.level] || LEVEL_META.low
-              return (
-                <div
-                  key={rp.risk_point_id}
-                  onClick={() => navigate('/learning')}
-                  style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 12, background: 'var(--card-2, rgba(255,255,255,0.03))', border: '1px solid var(--border)', cursor: 'pointer' }}
-                >
-                  <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 999, color: m.color, background: m.bg, border: `1px solid ${m.border}`, flexShrink: 0, marginTop: 2 }}>{m.label}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14 }}>{rp.description}</div>
-                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{rp.reason}</div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
 
       {/* 核心指标 */}
       <div className="kpi-grid">
@@ -185,7 +119,6 @@ export default function StudentHome() {
           <h3 className="section-title"><span className="dot" />快捷入口</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <button className="btn" onClick={() => navigate('/training')}>🎓 学习中心</button>
-            <button className="btn" onClick={() => navigate('/learning')}>🧭 学习路径</button>
             <button className="btn" onClick={() => navigate('/cases')}>📚 案例库</button>
             <button className="btn" onClick={() => navigate('/profile')}>👤 个人画像</button>
           </div>
