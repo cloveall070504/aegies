@@ -348,7 +348,7 @@
   will-change: cx, cy, rx, ry, x1, y1, x2, y2, d;
 }
 
-#left-eye, #right-eye {
+.dh-eye {
   transform-box: fill-box;
   transform-origin: center;
   will-change: transform;

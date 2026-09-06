@@ -26,6 +26,14 @@ client.interceptors.response.use(
     return body
   },
   async (err) => {
+    // 401：登录态失效（token 过期 / 被踢），清理本地 token 并跳回登录页，
+    // 否则所有请求都会以"网络错误"静默失败，用户只能手动清缓存。
+    if (err.response?.status === 401) {
+      try { useAuthStore.getState().logout() } catch (_) {}
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
     // blob 响应的错误（如报告下载越权 403）需要解析 Blob 为 JSON
     if (err.response?.data instanceof Blob) {
       try {

@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "实战避错系统"
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = False
+    # 运行环境：development（默认）/ production。生产环境必须用环境变量显式声明，
+    # 并配合真实 SECRET_KEY，否则启动时直接报错（见文件末尾安全检查）。
+    ENVIRONMENT: str = "development"
 
     # 服务绑定（由 start.py 读取；容器部署覆盖为 0.0.0.0 / 8000）
     HOST: str = "127.0.0.1"
@@ -112,8 +115,14 @@ try:
 except Exception:
     pass
 
-# 生产环境安全检查：非 DEBUG 模式下必须修改默认密钥
-if not settings.DEBUG and settings.SECRET_KEY.startswith("chy07-dev-only"):
+# 生产环境安全检查：
+#  - development 环境：仅警告（不阻断本地开发，默认密钥即可）
+#  - production 环境：若仍用开发默认密钥，直接启动失败，杜绝"默认值兜底生产"的隐患
+if settings.SECRET_KEY.startswith("chy07-dev-only"):
+    if settings.ENVIRONMENT == "production":
+        raise RuntimeError(
+            "SECRET_KEY 仍为开发默认值，生产环境必须通过环境变量 SECRET_KEY 设置随机密钥！"
+        )
     import warnings
     warnings.warn(
         "SECRET_KEY 仍为开发默认值，生产环境请通过环境变量 SECRET_KEY 设置随机密钥！",

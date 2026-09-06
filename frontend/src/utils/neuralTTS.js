@@ -1,12 +1,14 @@
 // Neural TTS - 微软神经语音（晓晓）
-// 优先调用后端 API（/api/v1/tts/speak），失败则回退到浏览器 WebSocket 直连，再失败回退到系统语音
+// 优先调用后端 API（/api/v1/tts/speak，密钥仅存于服务端 edge-tts 库内部，不进仓库），
+// 失败则回退到浏览器内置 Web Speech API（所有浏览器可用，无需任何 token）。
 //
 // 后端 /api/v1/tts/speak 需要登录（每次请求会 fork 一个 edge-tts 子进程，成本很高），
 // 所以这里不能像其它接口那样走 api/client.js 的裸 fetch，必须手动带上 JWT。
+// 注：原先的浏览器直连微软 Edge TTS WebSocket 方案硬编码了一个逆向得到的 TrustedClientToken，
+// 提交到公开仓库有合规风险，已移除，统一走后端代理。
 
 import useAuthStore from '../store/authStore';
 
-var WS_URL = 'wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D5EAFF4E9FB37E23D68491D6F4';
 var TTS_API_URL = '/api/v1/tts/speak';
 
 var EXPR_PROSODY = {
@@ -22,12 +24,6 @@ var EXPR_PROSODY = {
 };
 
 var DEFAULT_VOICE = 'zh-CN-XiaoxiaoNeural';
-
-function _uuid() {
-  return 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'.replace(/x/g, function() {
-    return Math.floor(Math.random() * 16).toString(16);
-  });
-}
 
 /**
  * 通过后端 API 获取语音（最稳定）
@@ -48,87 +44,6 @@ function _speakViaBackend(text, voice, rate, pitch, volume, expression) {
   }).then(function(blob) {
     if (blob.size < 100) throw new Error('Backend TTS returned empty audio');
     return URL.createObjectURL(blob);
-  });
-}
-
-/**
- * 通过浏览器 WebSocket 直连微软 Edge TTS（备用方案）
- */
-function _speakViaWebSocket(text, voice, rate, pitch, volume) {
-  return new Promise(function(resolve, reject) {
-    var ws = new WebSocket(WS_URL);
-    ws.binaryType = 'arraybuffer';
-    var chunks = [];
-    var resolved = false;
-
-    var timeout = setTimeout(function() {
-      if (!resolved) {
-        resolved = true;
-        try { ws.close(); } catch (e) {}
-        reject(new Error('TTS timeout'));
-      }
-    }, 10000);
-
-    ws.onopen = function() {
-      ws.send(
-        'Content-Type:application/json; charset=utf-8\r\n' +
-        'Path:speech.config\r\n\r\n' +
-        JSON.stringify({
-          context: {
-            synthesis: {
-              meeting: { clientVersion: '153401514', rtcId: '153401514' }
-            }
-          }
-        })
-      );
-      var ssml = '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="zh-CN">' +
-        '<voice name="' + voice + '">' +
-        '<prosody rate="' + rate + '" pitch="' + pitch + '" volume="' + volume + '">' +
-        text +
-        '</prosody></voice></speak>';
-      ws.send(
-        'X-RequestId:' + _uuid() + '\r\n' +
-        'Content-Type:application/ssml+xml\r\n' +
-        'Path:ssml\r\n\r\n' +
-        ssml
-      );
-    };
-
-    ws.onmessage = function(e) {
-      if (typeof e.data === 'string') {
-        if (e.data.indexOf('Path:turn.end') >= 0) {
-          resolved = true;
-          clearTimeout(timeout);
-          try { ws.close(); } catch (e) {}
-          if (chunks.length > 0) {
-            var blob = new Blob(chunks, { type: 'audio/mpeg' });
-            resolve(URL.createObjectURL(blob));
-          } else {
-            reject(new Error('No audio received'));
-          }
-        }
-      } else {
-        var data = new Uint8Array(e.data);
-        if (data.length > 130) {
-          var header = new TextDecoder().decode(data.slice(2, 130));
-          if (header.indexOf('Path:audio') >= 0) {
-            var full = new TextDecoder().decode(data.slice(2, Math.min(data.length, 200)));
-            var idx = full.indexOf('\r\n\r\n');
-            if (idx >= 0) {
-              chunks.push(data.slice(2 + idx + 4));
-            }
-          }
-        }
-      }
-    };
-
-    ws.onerror = function() {
-      if (!resolved) {
-        resolved = true;
-        clearTimeout(timeout);
-        reject(new Error('WebSocket error'));
-      }
-    };
   });
 }
 
@@ -215,14 +130,10 @@ export function neuralSpeak(text, expression, opts) {
   var pitch = opts.pitch || prosody.pitch;
   var volume = opts.volume || prosody.volume;
 
-  // 1. 后端 API → 2. WebSocket → 3. Web Speech API
+  // 1. 后端 API → 2. Web Speech API（浏览器内置，无需 token，无合规风险）
   return _speakViaBackend(text, voice, rate, pitch, volume, expression)
     .catch(function(err) {
-      console.warn('[TTS] backend failed, fallback to WebSocket:', err.message);
-      return _speakViaWebSocket(text, voice, rate, pitch, volume);
-    })
-    .catch(function(err) {
-      console.warn('[TTS] WebSocket failed, fallback to Web Speech API:', err.message);
+      console.warn('[TTS] backend failed, fallback to Web Speech API:', err.message);
       return _speakViaWebSpeech(text, voice, rate, pitch, volume);
     });
 }

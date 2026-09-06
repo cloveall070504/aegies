@@ -1228,6 +1228,127 @@ async def try_ollama_generate_async(prompt: str, max_tokens: int = 512, timeout:
             return None
 
 
+async def try_ollama_generate_stream(prompt: str, max_tokens: int = 512):
+    """流式生成入口（异步生成器）：逐 token 产出文本片段，供 SSE 端点增量推送。
+
+    与 try_ollama_generate_async 语义对齐：未配置 / 冷却中 / 全程失败时 *不产出任何 token*，
+    调用方据此降级为规则引擎（规则引擎是唯一真相源）。Ollama 走 /api/generate stream=True
+    的 NDJSON；cloud 走 OpenAI 兼容 /chat/completions stream=True 的 SSE。
+    注意：本函数是异步生成器，必须用 `async for` 消费；失败时设置冷却并向上抛，
+    由调用方（companion 的 _event_stream）捕获后标记 stream_failed → 降级，避免把
+    降级文案误记成 "llm"（详见 companion.py #9 修复）。
+    """
+    global _ollama_unavailable_until
+    if settings.AI_PROVIDER == "cloud":
+        if not settings.OPENAI_API_KEY:
+            return
+    else:
+        if not settings.ENABLE_OLLAMA:
+            return
+    now = time.monotonic()
+    if now < _ollama_unavailable_until:
+        return  # 冷却中：静默降级
+
+    async with _ollama_concurrency:
+        try:
+            if settings.AI_PROVIDER == "cloud":
+                async for piece in _cloud_generate_stream_impl(prompt, max_tokens):
+                    yield piece
+            else:
+                async for piece in _ollama_generate_stream_impl(prompt, max_tokens):
+                    yield piece
+        except Exception:  # noqa: BLE001 - 流式异常整体降级，让调用方标记 stream_failed
+            _ollama_unavailable_until = (
+                time.monotonic() + float(getattr(settings, "OLLAMA_RETRY_COOLDOWN", 10.0))
+            )
+            raise
+
+
+async def _ollama_generate_stream_impl(prompt: str, max_tokens: int = 512):
+    """Ollama /api/generate 流式实现：解析 NDJSON，逐块 yield "response" 字段。"""
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(connect=3.0, read=30.0, write=10.0, pool=3.0)
+    ) as client:
+        async with client.stream(
+            "POST",
+            f"{settings.OLLAMA_BASE_URL}/api/generate",
+            json={
+                "model": settings.OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": True,
+                "options": {"num_predict": max_tokens},
+            },
+        ) as resp:
+            resp.raise_for_status()
+            async for raw in resp.aiter_lines():
+                raw = (raw or "").strip()
+                if not raw:
+                    continue
+                try:
+                    obj = json.loads(raw)
+                except Exception:
+                    continue
+                piece = obj.get("response", "")
+                if piece:
+                    yield piece
+                if obj.get("done"):
+                    break
+
+
+async def _cloud_generate_stream_impl(prompt: str, max_tokens: int = 512):
+    """云端 OpenAI 兼容 /chat/completions 流式实现：解析 SSE，逐块 yield delta.content。"""
+    max_retries = 2
+    for attempt in range(1, max_retries + 1):
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0)
+            ) as client:
+                async with client.stream(
+                    "POST",
+                    f"{settings.OPENAI_API_BASE}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": settings.OPENAI_MODEL,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": max_tokens,
+                        "temperature": 0.3,
+                        "stream": True,
+                    },
+                ) as resp:
+                    resp.raise_for_status()
+                    async for raw in resp.aiter_lines():
+                        raw = (raw or "").strip()
+                        if not raw.startswith("data:"):
+                            continue
+                        data_str = raw[len("data:"):].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            obj = json.loads(data_str)
+                        except Exception:
+                            continue
+                        choices = obj.get("choices") or []
+                        if not choices:
+                            continue
+                        delta = choices[0].get("delta", {}) or {}
+                        piece = delta.get("content", "")
+                        if piece:
+                            yield piece
+            return
+        except Exception as e:  # noqa: BLE001 - 云端瞬时异常需重试
+            _status = getattr(e, "response", None)
+            _code = getattr(_status, "status_code", None)
+            if _code in (401, 402, 403, 429):
+                break  # 鉴权/配额错误重试无意义
+            if attempt < max_retries:
+                await asyncio.sleep(0.8 * attempt)
+            else:
+                break
+
+
 # 引擎模式探测结果缓存（短 TTL）：避免每次请求都发起 ~3s 的同步 Ollama 探测，
 # 否则前端轮询「AI/规则模式」徽标或健康检查时会频繁阻塞。最多 15s 陈旧，可接受。
 # 改用 CacheStore：单实例走内存（行为不变），多实例配 REDIS_URL 即跨实例共享。

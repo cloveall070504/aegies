@@ -25,8 +25,10 @@ import json
 import re
 import time
 from collections import deque
+from datetime import datetime
 
 from fastapi import APIRouter, Depends
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -242,6 +244,11 @@ def _save_message(db: Session, conversation_id: int, role: str, text: str,
         meta_json=json.dumps(meta or {}, ensure_ascii=False),
     )
     db.add(msg)
+    # #8 修复：每条消息落库时，把所属会话的 updated_at 往前刷（标记脏后由 onupdate=func.now() 自动更新），
+    # 否则会话列表按 updated_at 排序/淘汰会失效——新消息的会话沉底、超限时反而淘汰了活跃会话。
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if conv:
+        conv.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(msg)
     return msg
@@ -364,7 +371,7 @@ async def companion_chat(
 
     # ---------- 2) 自由问答：RAG 检索 + LLM 生成（答案落在条款上） ----------
     if intent == "qa":
-        hits = RAGService(db).search(text, "experiment", top_k=3)
+        hits = await run_in_threadpool(RAGService(db).search, text, "experiment", top_k=3)
         if hits:
             lines = [
                 f"{i + 1}. [{h.get('level', 'low')}] {h.get('description', '')}（依据：{h.get('clause_ref', '')}）"
@@ -577,7 +584,7 @@ async def companion_chat_stream(
 
         # 2) QA / 闲聊：走 LLM 流式
         if intent == "qa":
-            hits = RAGService(db).search(text, "experiment", top_k=3)
+            hits = await run_in_threadpool(RAGService(db).search, text, "experiment", top_k=3)
             if hits:
                 lines = [
                     f"{i + 1}. [{h.get('level', 'low')}] {h.get('description', '')}（依据：{h.get('clause_ref', '')}）"
@@ -638,6 +645,7 @@ async def companion_chat_stream(
         import json as _json
         full_text = ""
         stream_started = False
+        stream_failed = False
 
         try:
             async for chunk in try_ollama_generate_stream(prompt, max_tokens=max_tokens):
@@ -647,12 +655,16 @@ async def companion_chat_stream(
                 full_text += chunk
                 yield f'data: {{"type":"delta","text":{_json.dumps(chunk, ensure_ascii=False)}}}\n\n'
         except Exception:
-            # 流式失败 → 走降级，一次性返回
+            # 流式失败 → 走降级，一次性返回；标记失败以免 engine 被误记为 "llm"（详见 #9 修复）
             full_text = fallback_text
+            stream_failed = True
 
-        # 如果流式根本没开始（LLM 不可用），走降级
-        if not stream_started:
+        # 如果流式根本没开始（LLM 不可用 / 返回空），或中途失败，都走降级引擎，
+        # 绝不能把降级文案记成 "llm"；同时必须把 fallback_text 作为真正回复内容返回，
+        # 否则前端会收到空串（#9 修复补全：空流路径也要用兜底文案）。
+        if not stream_started or stream_failed:
             engine = fallback_engine
+            full_text = fallback_text
             yield f'data: {{"type":"start","intent":"{intent}","engine":"{engine}"}}\n\n'
         else:
             engine = "llm"

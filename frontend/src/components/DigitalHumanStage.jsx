@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import useDigitalHumanStore from '../store/digitalHumanStore'
 import { neuralSpeak, splitSentences } from '../utils/neuralTTS'
 
@@ -38,90 +38,10 @@ function getVoice() {
   return cachedVoice
 }
 
-const EXPRESSIONS = {
-  neutral: {
-    leftEye: { cx: 80, cy: 92, rx: 11, ry: 3.5 },
-    rightEye: { cx: 120, cy: 92, rx: 11, ry: 3.5 },
-    leftBrow: { x1: 70, y1: 80, x2: 90, y2: 80 },
-    rightBrow: { x1: 110, y1: 80, x2: 130, y2: 80 },
-    mouth: 'M 85 120 Q 100 125 115 120',
-  },
-  calm: {
-    leftEye: { cx: 80, cy: 92, rx: 11, ry: 3.5 },
-    rightEye: { cx: 120, cy: 92, rx: 11, ry: 3.5 },
-    leftBrow: { x1: 70, y1: 80, x2: 90, y2: 80 },
-    rightBrow: { x1: 110, y1: 80, x2: 130, y2: 80 },
-    mouth: 'M 85 120 Q 100 125 115 120',
-  },
-  happy: {
-    leftEye: { cx: 80, cy: 90, rx: 11, ry: 2.5 },
-    rightEye: { cx: 120, cy: 90, rx: 11, ry: 2.5 },
-    leftBrow: { x1: 70, y1: 75, x2: 90, y2: 78 },
-    rightBrow: { x1: 110, y1: 78, x2: 130, y2: 75 },
-    mouth: 'M 78 117 Q 100 133 122 117',
-  },
-  alert: {
-    leftEye: { cx: 80, cy: 90, rx: 11, ry: 2.5 },
-    rightEye: { cx: 120, cy: 90, rx: 11, ry: 2.5 },
-    leftBrow: { x1: 70, y1: 75, x2: 90, y2: 78 },
-    rightBrow: { x1: 110, y1: 78, x2: 130, y2: 75 },
-    mouth: 'M 78 117 Q 100 133 122 117',
-  },
-  thinking: {
-    leftEye: { cx: 80, cy: 92, rx: 11, ry: 2 },
-    rightEye: { cx: 120, cy: 90, rx: 11, ry: 3 },
-    leftBrow: { x1: 72, y1: 77, x2: 92, y2: 83 },
-    rightBrow: { x1: 108, y1: 83, x2: 128, y2: 76 },
-    mouth: 'M 88 122 Q 100 122 112 122',
-  },
-  focus: {
-    leftEye: { cx: 80, cy: 92, rx: 11, ry: 2 },
-    rightEye: { cx: 120, cy: 90, rx: 11, ry: 3 },
-    leftBrow: { x1: 72, y1: 77, x2: 92, y2: 83 },
-    rightBrow: { x1: 108, y1: 83, x2: 128, y2: 76 },
-    mouth: 'M 88 122 Q 100 122 112 122',
-  },
-  approve: {
-    leftEye: { cx: 80, cy: 90, rx: 11, ry: 2.5 },
-    rightEye: { cx: 120, cy: 90, rx: 11, ry: 2.5 },
-    leftBrow: { x1: 70, y1: 75, x2: 90, y2: 78 },
-    rightBrow: { x1: 110, y1: 78, x2: 130, y2: 75 },
-    mouth: 'M 78 117 Q 100 133 122 117',
-  },
-  surprised: {
-    leftEye: { cx: 80, cy: 92, rx: 7, ry: 7 },
-    rightEye: { cx: 120, cy: 92, rx: 7, ry: 7 },
-    leftBrow: { x1: 68, y1: 71, x2: 92, y2: 71 },
-    rightBrow: { x1: 108, y1: 71, x2: 130, y2: 71 },
-    mouth: 'M 94 118 Q 100 132 106 118',
-  },
-}
-
-// ---- 表情过渡动画工具 ----
-const EXPR_DURATION = 400
-// easeOutBack：起步快、末端微回弹，适合微表情
-const c1 = 1.70158, c3 = c1 + 1
-const easeOutBack = (t) => 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
-const lerp = (a, b, t) => a + (b - a) * t
-
-// ---- 语音情感联动：表情 → 语速/音调映射 ----
-const VOICE_PROFILES = {
-  neutral:  { rate: 0.96, pitch: 1.0  },
-  calm:     { rate: 0.88, pitch: 0.96 },
-  happy:    { rate: 1.08, pitch: 1.12 },
-  alert:    { rate: 1.15, pitch: 1.08 },
-  thinking: { rate: 0.78, pitch: 0.9  },
-  focus:    { rate: 0.84, pitch: 0.94 },
-  approve:  { rate: 1.0,  pitch: 1.06 },
-  surprised:{ rate: 1.2,  pitch: 1.22 },
-}
-
-function parseMouth(d) {
-  const m = d.match(/M\s+([\d.]+)\s+([\d.]+)\s+Q\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/)
-  if (!m) return null
-  return { x1: +m[1], y1: +m[2], cx: +m[3], cy: +m[4], x2: +m[5], y2: +m[6] }
-}
-const buildMouth = (p) => `M ${p.x1.toFixed(2)} ${p.y1.toFixed(2)} Q ${p.cx.toFixed(2)} ${p.cy.toFixed(2)} ${p.x2.toFixed(2)} ${p.y2.toFixed(2)}`
+// 表情系统说明：神态切换完全由 CSS 负责（见 nexus.css 的 [data-expression=...] 规则），
+// 8 种表情 + 0.4s 缓动过渡，无需 JS 逐帧补间。早期曾有一套 rAF 补间（applyExpr），
+// 但元素选择器写错（取 #left-eye 等不存在的 id）导致全程 early-return 成死代码，已删除，
+// 避免答辩时误称"自研补间动画"。
 
 export default function DigitalHumanStage({ emerged = false }) {
   const { caption, speaking, expression, muted, toggleMuted, hush } = useDigitalHumanStore()
@@ -129,96 +49,13 @@ export default function DigitalHumanStage({ emerged = false }) {
   const [voiceReady, setVoiceReady] = useState(false)
   const svgRef = useRef(null)
   const blinkTimerRef = useRef(null)
-  const animRef = useRef(null)
-
-  const applyExpr = useCallback((expr) => {
-    const svg = svgRef.current
-    if (!svg) return
-
-    const target = EXPRESSIONS[expr] || EXPRESSIONS.neutral
-
-    // 缓存 DOM 引用，避免每帧 querySelectorAll
-    const leGlow = svg.querySelector('#left-eye ellipse:first-child')
-    const leCore = svg.querySelector('#left-eye ellipse:last-child')
-    const reGlow = svg.querySelector('#right-eye ellipse:first-child')
-    const reCore = svg.querySelector('#right-eye ellipse:last-child')
-    const lbEl = svg.querySelector('#left-brow')
-    const rbEl = svg.querySelector('#right-brow')
-    const mEl = svg.querySelector('#mouth path')
-    if (!leCore || !reCore || !lbEl || !rbEl || !mEl) return
-
-    // 读取当前 SVG 上的值作为起点
-    const from = {
-      le: { cx: +leCore.getAttribute('cx'), cy: +leCore.getAttribute('cy'), rx: +leCore.getAttribute('rx'), ry: +leCore.getAttribute('ry') },
-      re: { cx: +reCore.getAttribute('cx'), cy: +reCore.getAttribute('cy'), rx: +reCore.getAttribute('rx'), ry: +reCore.getAttribute('ry') },
-      lb: { x1: +lbEl.getAttribute('x1'), y1: +lbEl.getAttribute('y1'), x2: +lbEl.getAttribute('x2'), y2: +lbEl.getAttribute('y2') },
-      rb: { x1: +rbEl.getAttribute('x1'), y1: +rbEl.getAttribute('y1'), x2: +rbEl.getAttribute('x2'), y2: +rbEl.getAttribute('y2') },
-      mo: parseMouth(mEl.getAttribute('d')),
-    }
-
-    const toMouth = parseMouth(target.mouth)
-    if (!from.mo || !toMouth) {
-      leGlow && leGlow.setAttribute('rx', target.leftEye.rx * 1.36); leGlow && leGlow.setAttribute('ry', target.leftEye.ry * 1.71)
-      leCore.setAttribute('cx', target.leftEye.cx); leCore.setAttribute('cy', target.leftEye.cy); leCore.setAttribute('rx', target.leftEye.rx); leCore.setAttribute('ry', target.leftEye.ry)
-      reGlow && reGlow.setAttribute('rx', target.rightEye.rx * 1.36); reGlow && reGlow.setAttribute('ry', target.rightEye.ry * 1.71)
-      reCore.setAttribute('cx', target.rightEye.cx); reCore.setAttribute('cy', target.rightEye.cy); reCore.setAttribute('rx', target.rightEye.rx); reCore.setAttribute('ry', target.rightEye.ry)
-      lbEl.setAttribute('x1', target.leftBrow.x1); lbEl.setAttribute('y1', target.leftBrow.y1); lbEl.setAttribute('x2', target.leftBrow.x2); lbEl.setAttribute('y2', target.leftBrow.y2)
-      rbEl.setAttribute('x1', target.rightBrow.x1); rbEl.setAttribute('y1', target.rightBrow.y1); rbEl.setAttribute('x2', target.rightBrow.x2); rbEl.setAttribute('y2', target.rightBrow.y2)
-      mEl.setAttribute('d', target.mouth)
-      return
-    }
-
-    if (animRef.current) cancelAnimationFrame(animRef.current)
-
-    const start = performance.now()
-    const lerpObj = (a, b, t) => { const r = {}; for (const k in a) r[k] = lerp(a[k], b[k], t); return r }
-
-    const tick = (now) => {
-      const t = Math.min(1, (now - start) / EXPR_DURATION)
-      const e = easeOutBack(t)
-
-      const le = lerpObj(from.le, target.leftEye, e)
-      const re = lerpObj(from.re, target.rightEye, e)
-      const lb = lerpObj(from.lb, target.leftBrow, e)
-      const rb = lerpObj(from.rb, target.rightBrow, e)
-      const mo = {
-        x1: lerp(from.mo.x1, toMouth.x1, e),
-        y1: lerp(from.mo.y1, toMouth.y1, e),
-        cx: lerp(from.mo.cx, toMouth.cx, e),
-        cy: lerp(from.mo.cy, toMouth.cy, e),
-        x2: lerp(from.mo.x2, toMouth.x2, e),
-        y2: lerp(from.mo.y2, toMouth.y2, e),
-      }
-
-      // 直接操作缓存的 DOM 引用，无 querySelectorAll
-      if (leGlow) { leGlow.setAttribute('rx', (le.rx * 1.36).toFixed(2)); leGlow.setAttribute('ry', (le.ry * 1.71).toFixed(2)) }
-      leCore.setAttribute('cx', le.cx.toFixed(2)); leCore.setAttribute('cy', le.cy.toFixed(2)); leCore.setAttribute('rx', le.rx.toFixed(2)); leCore.setAttribute('ry', le.ry.toFixed(2))
-      if (reGlow) { reGlow.setAttribute('rx', (re.rx * 1.36).toFixed(2)); reGlow.setAttribute('ry', (re.ry * 1.71).toFixed(2)) }
-      reCore.setAttribute('cx', re.cx.toFixed(2)); reCore.setAttribute('cy', re.cy.toFixed(2)); reCore.setAttribute('rx', re.rx.toFixed(2)); reCore.setAttribute('ry', re.ry.toFixed(2))
-      lbEl.setAttribute('x1', lb.x1.toFixed(2)); lbEl.setAttribute('y1', lb.y1.toFixed(2)); lbEl.setAttribute('x2', lb.x2.toFixed(2)); lbEl.setAttribute('y2', lb.y2.toFixed(2))
-      rbEl.setAttribute('x1', rb.x1.toFixed(2)); rbEl.setAttribute('y1', rb.y1.toFixed(2)); rbEl.setAttribute('x2', rb.x2.toFixed(2)); rbEl.setAttribute('y2', rb.y2.toFixed(2))
-      mEl.setAttribute('d', buildMouth(mo))
-
-      if (t < 1) animRef.current = requestAnimationFrame(tick)
-      else animRef.current = null
-    }
-    animRef.current = requestAnimationFrame(tick)
-  }, [])
-
-  // 表情切换
-  useEffect(() => {
-    applyExpr(expression)
-  }, [expression, applyExpr])
-
-  // 卸载时取消动画帧
-  useEffect(() => () => { if (animRef.current) cancelAnimationFrame(animRef.current) }, [])
 
   // 自动眨眼
   useEffect(() => {
     const blink = () => {
       const svg = svgRef.current
       if (!svg) return
-      const eyes = svg.querySelectorAll('#left-eye, #right-eye')
+      const eyes = svg.querySelectorAll('.dh-eye')
       eyes.forEach((g) => {
         g.classList.add('dh-blinking')
         setTimeout(() => g.classList.remove('dh-blinking'), 160)
