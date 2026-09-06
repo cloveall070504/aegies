@@ -15,6 +15,8 @@ httpx==0.28.1
 alembic==1.19.1
 # PostgreSQL 驱动（生产环境）
 psycopg2-binary==2.9.12
+# 数字人神经语音（微软 Edge 在线 TTS，免费）
+edge-tts==7.2.8
 # Optional: uncomment for embedding-based semantic search (requires ~1.5GB)
 # chromadb==0.5.23
 # sentence-transformers==3.3.1

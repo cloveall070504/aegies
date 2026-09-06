@@ -22,6 +22,8 @@ from app.config import settings
 # (路径前缀, 每分钟上限)
 DEFAULT_LIMITS = [
     ("/api/v1/auth/login", 10),
+    # TTS 每次请求会 fork 一个 edge-tts 子进程，成本高，限得更严
+    ("/api/v1/tts", 20),
     ("/api/v1/scene", 120),
     ("/api/v1/simulate", 60),
     ("/api/v1/meta/engine-status", 120),

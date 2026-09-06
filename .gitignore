@@ -24,6 +24,9 @@ backend/.env
 .venv_bak/
 frontend/tmp/
 
+# 本地离线依赖包副本（已由 requirements.txt 声明，勿提交）
+backend/extra_pkgs/
+
 # Node
 node_modules/
 dist/
