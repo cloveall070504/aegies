@@ -11,6 +11,7 @@ import Sandbox from './pages/PC/Sandbox'
 import Profile from './pages/PC/Profile'
 import Cases from './pages/PC/Cases'
 import Docs from './pages/PC/Docs'
+import Nexus from './pages/PC/Nexus'
 import AdminDashboard from './pages/PC/AdminDashboard'
 import Assignments from './pages/PC/Assignments'
 import SimTrain from './pages/PC/SimTrain'
@@ -64,7 +65,9 @@ function RoleGuard({ children, roles }) {
 
 export default function App() {
   const { theme } = useThemeStore()
-  const home = '/dashboard'
+  const { user } = useAuthStore()
+  // 学生走数字人主页（单页体验），教师/管理员仍走原有工作台
+  const home = user?.role === 'student' ? '/nexus' : '/dashboard'
   const location = useLocation()
 
   useEffect(() => {
@@ -100,6 +103,11 @@ export default function App() {
       <Route
         path="/docs"
         element={<Protected><PCLayout><Docs /></PCLayout></Protected>}
+      />
+      {/* 学生端 · 数字人主页（单页，不切路由；非学生会被 Nexus 内部重定向回工作台） */}
+      <Route
+        path="/nexus"
+        element={<Protected><Nexus /></Protected>}
       />
       <Route
         path="/admin"

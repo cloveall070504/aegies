@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import SceneSelector from '../components/SceneSelector'
 import EngineModeBadge from '../components/EngineModeBadge'
-import MascotAssistant from '../components/MascotAssistant'
+import FloatingCompanion from '../components/FloatingCompanion'
 import useAuthStore from '../store/authStore'
 import useThemeStore from '../store/themeStore'
 import { useLocation } from 'react-router-dom'
@@ -74,7 +74,9 @@ export default function PCLayout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <aside className="sidebar">
+      {/* 无障碍：跳过导航，直达主内容 */}
+      <a href="#pc-main-content" className="skip-link">跳到主内容</a>
+      <aside className="sidebar" aria-label="主导航">
         <div className="sidebar-logo">
           <span className="sidebar-logo-icon">⚡</span>
           实战避错系统
@@ -155,7 +157,7 @@ export default function PCLayout({ children }) {
           </div>
         </div>
       </aside>
-      <main className="pc-main">
+      <main className="pc-main" id="pc-main-content" tabIndex="-1" aria-label="主内容区">
         <div className="hud-bar">
           <span className="hud-bar__status"><span className="hud-bar__dot" />SYSTEM ONLINE</span>
           <span className="hud-bar__sep" />
@@ -166,7 +168,8 @@ export default function PCLayout({ children }) {
         </div>
         {children}
       </main>
-      {role === 'student' && <MascotAssistant />}
+      {/* 学生角色：全局悬浮数字人助手（独立路由页也能对话、主动发言） */}
+      {role === 'student' && <FloatingCompanion />}
     </div>
   )
 }

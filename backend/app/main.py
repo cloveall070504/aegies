@@ -10,9 +10,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api.v1 import (assignment, auth, cases, dashboard, docs, feedback,
-                        meta, org, profile, quiz, report, risk_point,
-                        scenario, scan, scene_system, simulation, system)
+from app.api.v1 import (assignment, auth, avatar, cases, companion, dashboard, docs,
+                        feedback, meta, org, profile, quiz, report, risk_point,
+                        scenario, scan, scene_system, simulation, system, tts)
 from app.config import settings
 from app.core.request_log import RequestLoggingMiddleware
 from app.core.ratelimit import RateLimitMiddleware
@@ -22,7 +22,7 @@ from app.models.user import User
 from app.services.prompt_service import seed_default_templates
 from app.services.rag_service import RAGService, ollama_status
 from app.api.v1.scene_system import _seed_scenes
-from app.services.seed_content import seed_cases, seed_quiz
+from app.api.v1.companion import _start_cleanup_task
 
 # 默认账号（首次启动写入，幂等）
 DEFAULT_ACCOUNTS = [
@@ -41,12 +41,10 @@ async def lifespan(app: FastAPI):
     init_db()
     db = SessionLocal()
     try:
-        # 种子数据：Prompt 模板 + 内置风险点 + 场景+步骤 + 案例+题库
+        # 种子数据：Prompt 模板 + 内置风险点 + 场景+步骤
         seed_default_templates(db)
         RAGService(db).seed_risk_points()
         _seed_scenes(db)
-        seed_cases(db)
-        seed_quiz(db)
         # 默认账号
         for username, pwd, role, dept, display in DEFAULT_ACCOUNTS:
             if not db.query(User).filter(User.username == username).first():
@@ -55,6 +53,8 @@ async def lifespan(app: FastAPI):
         db.commit()
     finally:
         db.close()
+    # 启动后台定时清理任务（会话过期回收，防内存泄漏）
+    _start_cleanup_task()
     yield
 
 
@@ -99,6 +99,8 @@ app.add_middleware(RateLimitMiddleware)
 # 统一 /api/v1 前缀注册路由
 api_v1 = [
     auth.router,
+    avatar.router,
+    companion.router,
     dashboard.router,
     scenario.router,
     profile.router,
@@ -115,6 +117,7 @@ api_v1 = [
     meta.router,
     risk_point.router,
     feedback.router,
+    tts.router,
 ]
 for r in api_v1:
     app.include_router(r, prefix=settings.API_V1_PREFIX)
