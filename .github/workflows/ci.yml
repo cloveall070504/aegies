@@ -35,6 +35,21 @@ jobs:
         env:
           ENABLE_OLLAMA: "false"
 
+      - name: Run reachability audit (方案3)
+        # 用内存库跑可达性/健康度审计：发现“真过度触发”或“死别名”则 CI 失败；
+        # 同时产出 audit-report.md 作为产物，便于回溯规则库健康度。
+        run: |
+          python _audit.py --ci
+        env:
+          ENABLE_OLLAMA: "false"
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-report
+          path: backend/audit-report.md
+
   frontend:
     name: Frontend (build)
     runs-on: ubuntu-latest
