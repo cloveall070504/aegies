@@ -738,6 +738,14 @@
   cursor: wait;
 }
 
+/* 浏览器不支持录音时的静态禁用态（与 :disabled 伪类区分：这里套在 div 上） */
+.voice-input .vi-btn--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: rgba(0, 229, 255, 0.15);
+  box-shadow: none;
+}
+
 .vi-mic { width: 22px; height: 22px; }
 
 .vi-spinner {

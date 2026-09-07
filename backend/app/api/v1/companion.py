@@ -24,15 +24,18 @@
 import json
 import re
 import time
+import httpx
+import base64
 from collections import deque
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.config import settings
 from app.database import get_db
 from app.models.conversation import (
     Conversation,
@@ -319,6 +322,63 @@ _CHAT_FALLBACKS = [
     "咱们还是聊点实验安全吧，比如你可以问我「浓硫酸怎么稀释」。",
     "这个问题有点超出我的范围啦，不过只要是实验安全相关的，我都能帮你。",
 ]
+
+
+@router.post("/asr")
+async def companion_asr(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    """语音识别：接收前端录音音频，调 DashScope Qwen3-ASR-Flash（OpenAI 兼容 /chat/completions）转文字。
+
+    为什么不用浏览器原生 Web Speech API：它的识别后端是谷歌云端，国内网络连不通，
+    表现为"录音在跑但永远吐不出字、还不报错"。改用"本地录音 + 后端转发 DashScope"，
+    复用现有 OPENAI_API_BASE/OPENAI_API_KEY（已接 DashScope 兼容端点），国内可用。
+
+    Qwen3-ASR-Flash 通过 /chat/completions 的 input_audio 多模态输入调用，音频以 Base64
+    data URL 直传（上限 10MB），无需公网 URL、无需异步轮询，最适合前端直录场景。
+    """
+    # 未开启云端或未配密钥时，明确告知前端不可用（前端据此引导打字）
+    if not settings.OPENAI_API_KEY or settings.AI_PROVIDER != "cloud":
+        return ok({"text": "", "available": False, "reason": "未开启云端模式或未配置密钥，语音识别不可用。"})
+    data = await file.read()
+    if not data:
+        return ok({"text": "", "available": False, "reason": "空音频。"})
+
+    try:
+        # 音频以 Base64 data URL 直接塞进 chat/completions 的 input_audio
+        b64 = base64.b64encode(data).decode("ascii")
+        mime = file.content_type or "audio/webm"
+        audio_url = f"data:{mime};base64,{b64}"
+        payload = {
+            "model": "qwen3-asr-flash",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_audio", "input_audio": {"data": audio_url}}
+                    ],
+                }
+            ],
+        }
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                f"{settings.OPENAI_API_BASE.rstrip('/')}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+                json=payload,
+            )
+        if resp.status_code != 200:
+            return ok({
+                "text": "",
+                "available": False,
+                "reason": f"识别服务返回 {resp.status_code}",
+                "detail": resp.text[:500],
+            })
+        j = resp.json()
+        text = (j.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
+        return ok({"text": text, "available": True})
+    except Exception as e:  # noqa: BLE001
+        return ok({"text": "", "available": False, "reason": f"识别请求失败：{e}"})
 
 
 @router.post("/chat")
