@@ -31,6 +31,13 @@
 .nexus-bg {
   position: fixed;
   inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
   z-index: 0;
   pointer-events: none;
 }
@@ -645,6 +652,13 @@
   backdrop-filter: blur(14px);
 }
 
+/* 功能面板打开时：数字人左移缩小，语音输入应跟随数字人（舞台中心），
+   而不是继续钉在视口正中，避免与右侧面板/抽屉内容错位。
+   舞台 transform: translateX(-27vw) scale(0.78)，其视觉中心 = 23vw - 136px。 */
+.nexus--panel .voice-input {
+  left: calc(23vw - 136px);
+}
+
 /* 窄屏收敛 */
 @media (max-width: 1180px) {
   .nexus {
@@ -654,6 +668,9 @@
     left: 33vw;
     right: 232px;
     width: auto;
+  }
+  .nexus--panel .voice-input {
+    left: calc(23vw - 116px);
   }
 }
 
