@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../../api/auth'
 import useAuthStore from '../../store/authStore'
 
-const PROTECTED_PREFIX = '/dashboard|/scenario|/sandbox|/profile|/scan|/cases|/docs|/quiz|/admin'
+const PROTECTED_PREFIX = '/dashboard|/scenario|/sandbox|/profile|/scan|/cases|/docs|/quiz|/admin|/training|/sim|/users'
 
 export default function Login() {
   const [username, setUsername] = useState('student')

@@ -349,7 +349,7 @@ async def companion_chat(
         result = await AgentService(db).infer(text, "experiment")
         reply = result.get("correction", "") or result.get("consequence", "")
         _append_history(user.id, session_id, "ai", reply)
-        _save_message(
+        msg = _save_message(
             db, conv.id, "ai", reply,
             intent="operation", engine="rule",
             level=result.get("level", ""),
@@ -366,7 +366,7 @@ async def companion_chat(
             "source_count": len(result.get("source_refs") or []),
             "engine": "rule",
             "module": module,
-            "message_id": conv.id,
+            "message_id": msg.id,
         })
 
     # ---------- 2) 自由问答：RAG 检索 + LLM 生成（答案落在条款上） ----------

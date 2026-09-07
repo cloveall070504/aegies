@@ -65,6 +65,16 @@ async def speak(req: TTSRequest, _user: User = Depends(get_current_user)):
 
     logger.info(f"TTS: {len(req.text)} chars, {voice}, rate={rate}")
 
+    # 文本过长 → 作为命令行参数会超出系统限制（Windows ~8191 字符），
+    # 触发未捕获 OSError；这里提前拦截，返回统一 JSON 错误体。
+    if len(req.text) > 2000:
+        err_body = json.dumps({
+            "code": 400,
+            "message": "文本过长（上限 2000 字），请分段生成。",
+            "data": None,
+        }, ensure_ascii=False).encode("utf-8")
+        return Response(status_code=400, content=err_body, media_type="application/json")
+
     # 通过子进程调用 edge-tts，避免与 uvicorn 的 aiohttp 事件循环冲突
     proc = await asyncio.create_subprocess_exec(
         sys.executable, _WORKER_SCRIPT,
@@ -85,7 +95,13 @@ async def speak(req: TTSRequest, _user: User = Depends(get_current_user)):
             await proc.wait()
         except Exception:
             pass
-        return Response(status_code=504, content="TTS timeout")
+        # 统一 JSON 错误体（与 503 分支一致），避免前端把纯文本当音频静默失败
+        err_body = json.dumps({
+            "code": 504,
+            "message": "TTS 生成超时，前端将自动降级为浏览器语音。",
+            "data": None,
+        }, ensure_ascii=False).encode("utf-8")
+        return Response(status_code=504, content=err_body, media_type="application/json")
 
     if proc.returncode != 0 or not stdout:
         err_text = stderr.decode("utf-8", errors="replace")[:500]

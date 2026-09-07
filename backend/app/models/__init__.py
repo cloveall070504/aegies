@@ -8,6 +8,7 @@ from app.models.quiz_question import QuizQuestion
 from app.models.personal_profile import PersonalProfile
 from app.models.case_entry import CaseEntry
 from app.models.org_profile import OrgProfile
+from app.models.conversation import Conversation, ConversationMessage
 from app.models.report import Report
 from app.models.prompt_template import PromptTemplate
 from app.models.scene import Scene
@@ -35,4 +36,6 @@ __all__ = [
     "AssignmentProgress",
     "ReviewItem",
     "Notification",
+    "Conversation",
+    "ConversationMessage",
 ]
