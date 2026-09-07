@@ -93,3 +93,14 @@ def resolve_feedback(
     rec.feedback_status = req.action
     db.commit()
     return ok({"record_id": rec.id, "feedback_status": rec.feedback_status}, message="反馈已处理")
+
+
+@router.get("/insights")
+def feedback_insights(
+    user: User = Depends(require_roles("teacher", "admin")),
+    db: Session = Depends(get_db),
+):
+    """教师/管理员：数据反哺洞察——扫描采集统计与高频误判模式。"""
+    from app.services.feedback_loop_service import get_insights
+
+    return ok(get_insights(db))

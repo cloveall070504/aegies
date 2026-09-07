@@ -77,4 +77,11 @@ def scan_text(
     if len(text) < 4:
         return fail("请粘贴至少一步实验操作步骤", code=400)
     result = analyze_text(db, text, req.scene_id)
+    # E 方案：采集扫描事件，供数据反哺闭环（采集失败不影响主流程）
+    try:
+        from app.services.feedback_loop_service import record_scan
+
+        record_scan(db=db, user_id=user.id, text=text, result=result, scene_id=req.scene_id)
+    except Exception:
+        pass
     return ok(result)

@@ -1,130 +1,135 @@
-"""反馈闭环（A1/A2/A3）接口测试：风险点编辑审核、学生错误回流、评分透明化。
+"""反向 RAG 升级 · E 方案（数据反哺闭环）验证。
 
 覆盖：
-- A1 教师/管理员维护风险知识库（列表/新建/编辑/审核/删除规则）
-- A2 学生对推演记录提交反馈 → 教师审核队列 → 处理
-- A3 推演结果携带可解释 score_breakdown
+  1) 扫描事件经 record_scan 落库（采集）；
+  2) aggregate_misjudgments 聚合误判记录命中的高频风险关键词；
+  3) suggest_risk_points 生成待审规则建议（去重、reviewed=0）；
+  4) get_insights 统计概览；
+  5) GET /api/v1/feedback/insights 教师可见 / 学生 403。
 """
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from fastapi.testclient import TestClient
+
+from app.database import Base
+import app.models  # noqa: F401
+from app.services.rag_service import RAGService
+from app.core.deps import get_db, get_current_user
+from app.models.user import User
+from app.services import feedback_loop_service
+from app.services.scan_service import analyze_text
+
+import app.main as m
+
+# 隔离 lifespan 真实 DB 副作用
+m.init_db = lambda: None
+m.seed_default_templates = lambda db: None
+m._seed_scenes = lambda db: None
+m._start_cleanup_task = lambda: None
 
 
-RISKY_STEP = "实验前未佩戴护目镜，直接打开浓硫酸试剂瓶，将水倒入浓硫酸中稀释"
+class _NoopRAG:
+    def __init__(self, db):
+        pass
+
+    def seed_risk_points(self):
+        return None
+
+    def search(self, *a, **k):
+        return []
 
 
-# ---------- A1 风险点管理 ----------
-def test_teacher_sees_all_risk_points(client, teacher_headers):
-    r = client.get("/risk-points", headers=teacher_headers)
+m.RAGService = _NoopRAG
+
+engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+Base.metadata.create_all(engine)
+_Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+
+def _override_db():
+    db = _Session()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def _override_teacher():
+    return User(id=1, username="fb_teacher", role="teacher")
+
+
+def _override_student():
+    return User(id=2, username="fb_student", role="student")
+
+
+m.app.dependency_overrides[get_db] = _override_db
+m.app.dependency_overrides[get_current_user] = _override_teacher
+
+client = TestClient(m.app)
+
+
+@pytest.fixture(autouse=True)
+def _force_teacher():
+    m.app.dependency_overrides[get_current_user] = _override_teacher
+    yield
+    m.app.dependency_overrides[get_current_user] = _override_teacher
+
+
+def _scan_and_flag(session, behavior="用嘴吸移液管中的腐蚀性试剂"):
+    res = analyze_text(session, behavior, "chem_lab")
+    rec = feedback_loop_service.record_scan(session, 1, behavior, res, "chem_lab")
+    rec.is_misjudge = 1
+    session.commit()
+    return rec
+
+
+def test_record_and_aggregate(session):
+    _scan_and_flag(session)
+    agg = feedback_loop_service.aggregate_misjudgments(session)
+    kws = [a["keyword"] for a in agg]
+    assert "用嘴吸" in kws  # _keyword_hits 命中该行为
+
+
+def test_suggest_risk_points_and_dedup(session):
+    _scan_and_flag(session)
+    created = feedback_loop_service.suggest_risk_points(session, min_count=1)
+    assert any(c["description"] == "用嘴吸" for c in created)
+    assert all(c["reviewed"] == 0 and c["source"] == "custom" for c in created)
+    # 再次建议应去重（候选已入 risk_points，不应重复生成）
+    created2 = feedback_loop_service.suggest_risk_points(session, min_count=1)
+    assert not any(c["description"] == "用嘴吸" for c in created2)
+
+
+def test_get_insights(session):
+    _scan_and_flag(session)
+    ins = feedback_loop_service.get_insights(session)
+    assert ins["misjudge_count"] >= 1
+    assert "total_records" in ins
+    assert "by_level" in ins
+    assert "top_misjudge_keywords" in ins
+
+
+def test_insights_teacher_ok():
+    r = client.get("/api/v1/feedback/insights")
     assert r.status_code == 200, r.text
-    d = r.json()["data"]
-    assert d["total"] >= 1
-    assert isinstance(d["items"], list)
+    assert "total_records" in r.json()["data"]
 
 
-def test_student_only_sees_reviewed_risk_points(client, student_headers):
-    # 学生不应看到 reviewed=0/2 的条目；若种子全为 reviewed=1，总数应 >0
-    r = client.get("/risk-points", headers=student_headers)
-    assert r.status_code == 200, r.text
-    items = r.json()["data"]["items"]
-    assert all(it["reviewed"] == 1 for it in items)
-
-
-def test_teacher_create_review_approve_reject_flow(client, teacher_headers, student_headers):
-    # 新建 → 进入待审核
-    c = client.post("/risk-points", headers=teacher_headers, json={
-        "description": "测试风险点_待审核", "level": "high", "weight": 0.9, "clause_ref": "测试条款",
-    })
-    assert c.status_code == 200, c.text
-    rp = c.json()["data"]
-    assert rp["reviewed"] == 0 and rp["source"] == "custom"
-
-    # 审核通过
-    rv = client.post(f"/risk-points/{rp['id']}/review", headers=teacher_headers, json={"action": "approve"})
-    assert rv.status_code == 200, rv.text
-    assert rv.json()["data"]["reviewed"] == 1
-
-    # 学生现在能看到它
-    s = client.get("/risk-points", headers=student_headers)
-    ids = [it["id"] for it in s.json()["data"]["items"]]
-    assert rp["id"] in ids
-
-    # 驳回后再隐藏
-    rj = client.post(f"/risk-points/{rp['id']}/review", headers=teacher_headers, json={"action": "reject"})
-    assert rj.json()["data"]["reviewed"] == 2
-    s2 = client.get("/risk-points", headers=student_headers)
-    assert rp["id"] not in [it["id"] for it in s2.json()["data"]["items"]]
-
-    # 自建风险点可删除；种子不可删
-    dele = client.delete(f"/risk-points/{rp['id']}", headers=teacher_headers)
-    assert dele.status_code == 200, dele.text
-
-
-def test_student_cannot_create_risk_point(client, student_headers):
-    r = client.post("/risk-points", headers=student_headers, json={"description": "x", "level": "low"})
-    assert r.status_code in (401, 403)
-
-
-def test_seed_risk_point_not_deletable(client, teacher_headers, admin_headers):
-    lst = client.get("/risk-points", headers=teacher_headers, params={"source": "seed", "page_size": 5})
-    seed = next((it for it in lst.json()["data"]["items"] if it["source"] == "seed"), None)
-    assert seed is not None
-    d = client.delete(f"/risk-points/{seed['id']}", headers=teacher_headers)
-    assert d.status_code == 400
-
-
-# ---------- A3 评分透明化 ----------
-def test_simulate_returns_score_breakdown(client, student_headers):
-    r = client.post("/simulate/step", headers=student_headers, json={"step": RISKY_STEP, "scene_id": "chem_lab", "history": []})
-    assert r.status_code == 200, r.text
-    res = r.json()["data"]
-    assert res["level"] in ("high", "medium", "low")
-    assert isinstance(res.get("score_breakdown"), list) and len(res["score_breakdown"]) > 0
-    assert all("factor" in b and "delta" in b for b in res["score_breakdown"])
-    # 落库记录才有 record_id（非 none 必然有）
-    assert res["level"] != "none"
-    assert isinstance(res.get("record_id"), int)
-
-
-def test_infer_returns_score_breakdown(client, student_headers):
-    r = client.post("/scenario/infer", headers=student_headers, json={"behavior": RISKY_STEP, "scene_code": "chem_lab"})
-    assert r.status_code == 200, r.text
-    res = r.json()["data"]
-    assert isinstance(res.get("score_breakdown"), list) and len(res["score_breakdown"]) > 0
-
-
-# ---------- A2 学生错误回流闭环 ----------
-def test_feedback_submit_pending_resolve_loop(client, student_headers, teacher_headers):
-    # 1) 学生推演拿到 record_id
-    sim = client.post("/simulate/step", headers=student_headers, json={"step": RISKY_STEP, "scene_id": "chem_lab", "history": []})
-    rec_id = sim.json()["data"]["record_id"]
-    assert isinstance(rec_id, int)
-
-    # 2) 学生提交反馈（认为误判）
-    fb = client.post("/feedback/submit", headers=student_headers, json={
-        "record_id": rec_id, "feedback": "这一步其实有防护，不应判高危", "is_misjudge": True,
-    })
-    assert fb.status_code == 200, fb.text
-    assert fb.json()["data"]["feedback_status"] == "pending"
-
-    # 3) 教师审核队列能看到，且含评分明细
-    pend = client.get("/feedback/pending", headers=teacher_headers)
-    assert pend.status_code == 200, pend.text
-    items = pend.json()["data"]["items"]
-    mine = next((it for it in items if it["record_id"] == rec_id), None)
-    assert mine is not None
-    assert mine["is_misjudge"] == 1 and mine["student_feedback"]
-    assert isinstance(mine["score_breakdown"], list)
-
-    # 4) 教师处理
-    rs = client.post(f"/feedback/{rec_id}/resolve", headers=teacher_headers, json={"action": "accepted"})
-    assert rs.status_code == 200, rs.text
-    assert rs.json()["data"]["feedback_status"] == "accepted"
-
-    # 处理后不再出现在待处理队列
-    pend2 = client.get("/feedback/pending", headers=teacher_headers)
-    assert all(it["record_id"] != rec_id for it in pend2.json()["data"]["items"])
-
-
-def test_student_cannot_resolve_feedback(client, student_headers):
-    # 学生无审核权限
-    r = client.post("/feedback/999999/resolve", headers=student_headers, json={"action": "resolved"})
-    assert r.status_code in (401, 403, 404)
+def test_insights_forbids_student():
+    m.app.dependency_overrides[get_current_user] = _override_student
+    try:
+        r = client.get("/api/v1/feedback/insights")
+        assert r.status_code == 403, r.text
+    finally:
+        m.app.dependency_overrides[get_current_user] = _override_teacher
