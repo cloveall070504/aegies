@@ -19,6 +19,7 @@ from app.services.agent_service import (
 from app.services.rag_service import RAGService
 from app.services.risk_outcomes import get_risk_outcome, match_risk_outcome
 from app.services.required_steps import detect_missing_steps
+from app.services.causality_service import detect_causality
 
 
 def _split_steps(text: str) -> List[str]:
@@ -157,9 +158,13 @@ def analyze_text(db: Session, text: str, scene_id: str = "") -> dict:
     # 方案1：整份方案的缺失安全检查点（清单覆盖度，非评级）
     missing_steps = detect_missing_steps(text, scene_type)
 
+    # 方案D：时序/因果链识别（有序不变量，非评级，走「建议」通道）
+    causal_issues = detect_causality(steps)
+
     return {
         "total_steps": len(steps),
         "summary": summary,
         "findings": findings,
         "missing_steps": missing_steps,
+        "causal_findings": causal_issues,
     }
