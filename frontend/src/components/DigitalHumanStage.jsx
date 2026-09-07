@@ -241,26 +241,26 @@ export default function DigitalHumanStage({ emerged = false }) {
               </feMerge>
             </filter>
             <pattern id="dhHexPattern" x="0" y="0" width="14" height="12.12" patternUnits="userSpaceOnUse">
-              <polygon points="7,0 14,3.54 14,8.58 7,12.12 0,8.58 0,3.54" fill="none" stroke="rgba(0,229,255,0.05)" strokeWidth="0.5" />
+              <polygon points="7,0 14,3.54 14,8.58 7,12.12 0,8.58 0,3.54" fill="none" stroke="rgba(0,229,255,0.28)" strokeWidth="0.7" />
             </pattern>
           </defs>
 
           {/* 圆形脸部 */}
           <circle cx="100" cy="100" r="75" fill="url(#dhFaceGrad)" stroke="url(#dhHeadGrad)" strokeWidth="2" filter="url(#dhGlow)" />
-          <circle cx="100" cy="100" r="73" fill="url(#dhHexPattern)" opacity="0.5" />
+          <circle cx="100" cy="100" r="73" fill="url(#dhHexPattern)" opacity="0.85" />
 
           {/* 外圈装饰 */}
-          <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(0,229,255,0.08)" strokeWidth="0.5" strokeDasharray="2 4" />
+          <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(0,229,255,0.22)" strokeWidth="0.7" strokeDasharray="2 4" />
 
           {/* 侧边科技指示线 */}
-          <line x1="30" y1="100" x2="22" y2="100" stroke="rgba(0,229,255,0.2)" strokeWidth="1" strokeLinecap="round" />
-          <line x1="170" y1="100" x2="178" y2="100" stroke="rgba(0,229,255,0.2)" strokeWidth="1" strokeLinecap="round" />
+          <line x1="30" y1="100" x2="22" y2="100" stroke="rgba(0,229,255,0.45)" strokeWidth="1.2" strokeLinecap="round" />
+          <line x1="170" y1="100" x2="178" y2="100" stroke="rgba(0,229,255,0.45)" strokeWidth="1.2" strokeLinecap="round" />
 
           {/* 左眉 */}
-          <line className="dh-brow dh-brow--l" x1="70" y1="80" x2="90" y2="80" stroke="url(#dhHeadGrad)" strokeWidth="2.5" strokeLinecap="round" opacity="0.8" />
+          <line className="dh-brow dh-brow--l" x1="70" y1="80" x2="90" y2="80" stroke="url(#dhHeadGrad)" strokeWidth="3" strokeLinecap="round" opacity="1" />
 
           {/* 右眉 */}
-          <line className="dh-brow dh-brow--r" x1="110" y1="80" x2="130" y2="80" stroke="url(#dhHeadGrad)" strokeWidth="2.5" strokeLinecap="round" opacity="0.8" />
+          <line className="dh-brow dh-brow--r" x1="110" y1="80" x2="130" y2="80" stroke="url(#dhHeadGrad)" strokeWidth="3" strokeLinecap="round" opacity="1" />
 
           {/* 左眼 */}
           <g className="dh-eye dh-eye--l">

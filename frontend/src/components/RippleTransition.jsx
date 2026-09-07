@@ -91,7 +91,7 @@ export default function RippleTransition({ onEmerge, onDone }) {
           cells.push({
             x: c * COL_SP + xOff,
             y: r * ROW_SP,
-            baseOp: 0.05 + Math.random() * 0.05,
+            baseOp: 0.02 + Math.random() * 0.04,
             brightness: 0,
             twinkle: Math.random() * Math.PI * 2,
             twinkleSpd: 0.008 + Math.random() * 0.015,
@@ -184,7 +184,7 @@ export default function RippleTransition({ onEmerge, onDone }) {
 
         cell.twinkle += cell.twinkleSpd
         const ambient = (Math.sin(cell.twinkle) * 0.5 + 0.5) * 0.01
-        const centerGlow = Math.max(0, 1 - dist / 180) * 0.12 * intensity
+        const centerGlow = Math.max(0, 1 - dist / 200) * 0.20 * intensity
 
         let wb = 0
         let wc = '0,229,255'
@@ -201,13 +201,15 @@ export default function RippleTransition({ onEmerge, onDone }) {
         }
         cell.brightness = cell.brightness * 0.85 + wb * 0.15
 
-        const totalOp = cell.baseOp + ambient + centerGlow + cell.brightness * 0.4
+        // 黑底上场波纹可以更明显：静态网格 13-16%，波纹叠加
+        const restStroke = (0.13 + cell.baseOp + ambient * 0.5) * intensity
+        const glowStroke = cell.brightness * 0.6
+        const strokeOp = Math.min(0.95, restStroke + glowStroke + centerGlow * 0.6)
+        const fillOp = Math.min(0.42, cell.brightness * 0.30 + centerGlow * 0.25)
+        const color = cell.brightness > 0.03 ? wc : '0,229,255'
+        const lw = cell.brightness > 0.03 ? 1.1 : 0.7
 
-        if (cell.brightness > 0.03) {
-          drawHex(ctx, cell.x, cell.y, HEX_SIZE, wc, cell.brightness * 0.20, totalOp * 0.9, 1.0)
-        } else {
-          drawHex(ctx, cell.x, cell.y, HEX_SIZE, '0,229,255', totalOp * 0.12, totalOp * 0.8, 0.6)
-        }
+        drawHex(ctx, cell.x, cell.y, HEX_SIZE, color, fillOp, strokeOp, lw)
       }
 
       raf = requestAnimationFrame(draw)
