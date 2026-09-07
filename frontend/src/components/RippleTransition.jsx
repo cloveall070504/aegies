@@ -91,7 +91,7 @@ export default function RippleTransition({ onEmerge, onDone }) {
           cells.push({
             x: c * COL_SP + xOff,
             y: r * ROW_SP,
-            baseOp: 0.012 + Math.random() * 0.018,
+            baseOp: 0.05 + Math.random() * 0.05,
             brightness: 0,
             twinkle: Math.random() * Math.PI * 2,
             twinkleSpd: 0.008 + Math.random() * 0.015,
@@ -121,13 +121,22 @@ export default function RippleTransition({ onEmerge, onDone }) {
       waveIdx++
     }
 
+    // 涟漪圆心对齐数字人舞台中心（人脸所在），而非视口正中
+    const getCenter = () => {
+      const w0 = canvas.clientWidth
+      const h0 = canvas.clientHeight
+      const stage = document.querySelector('.nexus__stage')
+      if (!stage) return { cx: w0 / 2, cy: h0 / 2 }
+      const rect = stage.getBoundingClientRect()
+      return { cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2 }
+    }
+
     const draw = (now) => {
       if (!startedAt) startedAt = now
       const t = now - startedAt
       const w = canvas.clientWidth
       const h = canvas.clientHeight
-      const cx = w / 2
-      const cy = h / 2
+      const { cx, cy } = getCenter()
 
       ctx.clearRect(0, 0, w, h)
 
@@ -175,7 +184,7 @@ export default function RippleTransition({ onEmerge, onDone }) {
 
         cell.twinkle += cell.twinkleSpd
         const ambient = (Math.sin(cell.twinkle) * 0.5 + 0.5) * 0.01
-        const centerGlow = Math.max(0, 1 - dist / 140) * 0.06 * intensity
+        const centerGlow = Math.max(0, 1 - dist / 180) * 0.12 * intensity
 
         let wb = 0
         let wc = '0,229,255'
@@ -195,9 +204,9 @@ export default function RippleTransition({ onEmerge, onDone }) {
         const totalOp = cell.baseOp + ambient + centerGlow + cell.brightness * 0.4
 
         if (cell.brightness > 0.03) {
-          drawHex(ctx, cell.x, cell.y, HEX_SIZE, wc, cell.brightness * 0.08, totalOp, 0.8)
+          drawHex(ctx, cell.x, cell.y, HEX_SIZE, wc, cell.brightness * 0.20, totalOp * 0.9, 1.0)
         } else {
-          drawHex(ctx, cell.x, cell.y, HEX_SIZE, '0,229,255', totalOp * 0.05, totalOp * 0.4, 0.5)
+          drawHex(ctx, cell.x, cell.y, HEX_SIZE, '0,229,255', totalOp * 0.12, totalOp * 0.8, 0.6)
         }
       }
 

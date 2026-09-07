@@ -110,7 +110,7 @@ export default function Nexus() {
           cells.push({
             x: c * COL_SP + xOff,
             y: r * ROW_SP,
-            baseOp: 0.012 + Math.random() * 0.018,
+            baseOp: 0.05 + Math.random() * 0.05,
             brightness: 0,
             twinkle: Math.random() * Math.PI * 2,
             twinkleSpd: 0.008 + Math.random() * 0.015,
@@ -175,7 +175,7 @@ export default function Nexus() {
 
         cell.twinkle += cell.twinkleSpd
         const ambient = (Math.sin(cell.twinkle) * 0.5 + 0.5) * 0.01
-        const centerGlow = Math.max(0, 1 - dist / 140) * 0.06
+        const centerGlow = Math.max(0, 1 - dist / 180) * 0.12
 
         let wb = 0
         let wc = '0,229,255'
@@ -195,9 +195,9 @@ export default function Nexus() {
         const totalOp = cell.baseOp + ambient + centerGlow + cell.brightness * 0.4
 
         if (cell.brightness > 0.03) {
-          drawHex(ctx, cell.x, cell.y, HEX_SIZE, wc, cell.brightness * 0.08, totalOp, 0.8)
+          drawHex(ctx, cell.x, cell.y, HEX_SIZE, wc, cell.brightness * 0.20, totalOp * 0.9, 1.0)
         } else {
-          drawHex(ctx, cell.x, cell.y, HEX_SIZE, '0,229,255', totalOp * 0.05, totalOp * 0.4, 0.5)
+          drawHex(ctx, cell.x, cell.y, HEX_SIZE, '0,229,255', totalOp * 0.12, totalOp * 0.8, 0.6)
         }
       }
 
