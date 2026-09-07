@@ -9,7 +9,8 @@
 key 必须与 rag_service.BUILTIN_RISK_POINTS 中 risk_point.description 完全一致。
 """
 
-from typing import Dict, List
+import re
+from typing import Dict, List, Optional
 
 _RISK_OUTCOMES: Dict[str, Dict[str, object]] = {
     # ===== 高危 =====
@@ -845,3 +846,95 @@ def get_specific_correction_steps(description: str) -> List[str]:
     """获取针对性整改步骤，无映射时返回空列表。"""
     out = _RISK_OUTCOMES.get(description)
     return list(out.get("correction_steps", [])) if out else []
+
+
+# ---------------------------------------------------------------------------
+# 模糊匹配：让「近似描述」也能命中标准后果/整改，而不只是原话。
+# 方法：精确相等 > 规范化相等(去标点空白+同义归一) > 字符 bigram 相似度(Dice 系数) ≥ 阈值。
+# 采用字符级 2-gram 而非 jieba 分词：分词对短句/化学碎片不稳定（倒进/嘴吸 等常被切丢），
+# 字符 bigram 与分词无关，召回稳定；同义先做字符串替换再取 bigram。
+# 未达阈值返回 None，由调用方退回通用模板 —— 保持诚实，避免把具体后果错配到错误风险。
+# 注：此为离线启发式匹配；若要更强的中文语义召回，可在此接入 embedding 相似度作为第二通道。
+# ---------------------------------------------------------------------------
+
+# 同义/变体归一（字符串级，先于 bigram 生成）
+_SYN_REPLACES = [
+    ("倒进", "倒入"), ("灌进", "倒入"), ("弄进", "倒入"), ("倒至", "倒入"),
+    ("对着", "朝向"), ("对准", "朝向"), ("面向", "朝向"),
+    ("防护镜", "护目镜"), ("防护眼镜", "护目镜"),
+    ("溅到", "溅"), ("溅入", "溅"), ("泼", "溅"), ("洒", "溅"), ("撒", "溅"),
+    ("忘", "未"), ("漏", "未"), ("关", "关闭"), ("熄灭", "关闭"),
+    ("硫酸", "浓硫酸"),  # 保守：多数风险点以浓硫酸表述，普通硫酸按同族处理
+]
+
+# 停用单字（去除后显著降低噪声；注意保留 关/未，因为它们是上面同义替换的目标）
+_STOPCHARS = set(
+    "的 了 是 在 把 将 会 有 什 么 啥 里 中 时 后 前 就 等 和 与 并 我 你 他 这 该 及 或 "
+    "因 由 导 致 造 成 发 生 出 现 如 若 应 要 不 没 勿 请 注 意 务 必 定 须 可 能 使 到 "
+    "做 着 让 给 被 用 实 验 操 作 进 行 直 接 去 候 西".replace(" ", "")
+)
+
+_PUNCT = "，。、；;:：（）【】"
+_PUNCT += "[]"
+_PUNCT += chr(34) + chr(39) + ".,!！?？-—_/\\() "
+
+
+def _normalize(text: str) -> str:
+    t = (text or "").lower()
+    t = re.sub(r"\s", "", t)
+    t = t.translate(str.maketrans("", "", _PUNCT))
+    for a, b in _SYN_REPLACES:
+        t = t.replace(a, b)
+    return t
+
+
+def _bigrams(text: str) -> set:
+    s = _normalize(text)
+    s = "".join(ch for ch in s if ch not in _STOPCHARS)
+    if len(s) < 2:
+        return set(s)
+    return {s[i:i + 2] for i in range(len(s) - 1)}
+
+
+_KEY_INDEX: Optional[list] = None
+
+
+def _build_index() -> list:
+    idx = []
+    for k, v in _RISK_OUTCOMES.items():
+        idx.append({"key": k, "norm": _normalize(k), "tokens": _bigrams(k), "outcome": v})
+    return idx
+
+
+def match_risk_outcome(step: str, threshold: float = 0.3) -> Optional[dict]:
+    """对输入步骤做模糊匹配，返回最接近风险点的标准后果/整改。
+
+    返回结构同 _RISK_OUTCOMES 的条目：{"consequence": str, "correction_steps": [...]}.
+    未命中返回 None（调用方应退回通用模板，不编造具体后果）。
+    """
+    global _KEY_INDEX
+    if _KEY_INDEX is None:
+        _KEY_INDEX = _build_index()
+    if not step or not step.strip():
+        return None
+    s_norm = _normalize(step)
+    s_tok = _bigrams(step)
+    # 1) 精确 / 规范化相等
+    for item in _KEY_INDEX:
+        if item["norm"] == s_norm:
+            return item["outcome"]
+    # 2) 字符 bigram 相似度（Dice 系数 2|∩|/(|A|+|B|)，对长风险描述里的填充词更鲁棒）
+    #    要求 ≥2 个 bigram 交集，避免单字误配。
+    best = None
+    best_sim = 0.0
+    for item in _KEY_INDEX:
+        if not s_tok or not item["tokens"]:
+            continue
+        inter = s_tok & item["tokens"]
+        if len(inter) < 2:
+            continue
+        sim = 2 * len(inter) / (len(s_tok) + len(item["tokens"]))
+        if sim > best_sim:
+            best_sim = sim
+            best = item["outcome"]
+    return best if best_sim >= threshold else None

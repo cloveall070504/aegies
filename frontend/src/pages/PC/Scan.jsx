@@ -92,6 +92,11 @@ export default function Scan() {
                 <div className="risk-card-head">
                   <span className="badge">第 {f.index} 步</span>
                   <span className="muted">风险等级 {f.level}</span>
+                  {f.all_risks?.length > 1 && (
+                    <span className="badge" style={{ marginLeft: 'auto', background: 'rgba(255,170,0,.16)', color: '#b45309', borderColor: 'rgba(255,170,0,.4)' }}>
+                      共 {f.all_risks.length} 处风险
+                    </span>
+                  )}
                 </div>
                 <p className="risk-card-desc">{f.step}</p>
                 {f.matched_clauses?.length > 0 && (

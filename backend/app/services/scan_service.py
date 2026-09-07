@@ -17,6 +17,7 @@ from app.services.agent_service import (
     _safe_context_override,
 )
 from app.services.rag_service import RAGService
+from app.services.risk_outcomes import get_risk_outcome, match_risk_outcome
 
 
 def _split_steps(text: str) -> List[str]:
@@ -25,6 +26,20 @@ def _split_steps(text: str) -> List[str]:
     raw = re.split(r"[\n;；。\.]+", text)
     steps = [s.strip(" \t　•·-") for s in raw if s and s.strip()]
     return steps
+
+
+def _risk_block(desc: str, source: str, lvl: str, out: dict) -> dict:
+    """把一条命中的风险点整理为统一结构，供多风险并发展示与排序。"""
+    steps = list(out.get("correction_steps", []))
+    base = {"high": 9, "medium": 6, "low": 3}.get(lvl, 3)
+    return {
+        "source": source,
+        "description": desc,
+        "level": lvl,
+        "consequence": str(out.get("consequence", "")),
+        "correction": "\n".join(f"{i + 1}. {s}" for i, s in enumerate(steps)) if steps else "",
+        "severity_score": min(base + 1, 10),
+    }
 
 
 def analyze_text(db: Session, text: str, scene_id: str = "") -> dict:
@@ -73,18 +88,45 @@ def analyze_text(db: Session, text: str, scene_id: str = "") -> dict:
         consequence = _consequence_text(step, level, hits, refs)
         correction = _correction_text(step, level, hits, refs)
 
-        # 关联错误案例：命中高危/中危关键词时，按关键词检索已发布案例
+        # 关联错误案例：命中高危/中危关键词时，按关键词检索已发布案例（最多取前 3 个关键词扩大召回）
         related_case_ids = []
-        kw_focus = (hits["high"] + hits["medium"])[:1]
-        if kw_focus:
-            kw = kw_focus[0]
+        kw_focus = (hits["high"] + hits["medium"])[:3]
+        for kw in kw_focus:
             cases = (
                 db.query(CaseEntry)
                 .filter(CaseEntry.behavior.contains(kw), CaseEntry.status == "approved")
                 .limit(3)
                 .all()
             )
-            related_case_ids = [c.id for c in cases]
+            for c in cases:
+                if c.id not in related_case_ids:
+                    related_case_ids.append(c.id)
+
+        # 多风险并发：收集本步命中的所有风险点（不止第一个），供前端展示与排序
+        all_risks = []
+        _seen = set()
+        for ref in refs:
+            out = get_risk_outcome(ref.get("description", ""))
+            if out:
+                desc = ref.get("description", "")
+                if desc not in _seen:
+                    _seen.add(desc)
+                    all_risks.append(_risk_block(desc, "canonical", ref.get("level", level), out))
+        fuzzy = match_risk_outcome(step)
+        if fuzzy and fuzzy.get("consequence") not in _seen:
+            _seen.add(fuzzy.get("consequence"))
+            all_risks.append(_risk_block(step, "fuzzy", level, fuzzy))
+        for kw in (hits["high"] + hits["medium"]):
+            if kw not in _seen:
+                _seen.add(kw)
+                all_risks.append({
+                    "source": "keyword", "match": kw,
+                    "level": "high" if kw in hits["high"] else "medium",
+                    "consequence": "", "correction": "",
+                    "severity_score": 6 if kw in hits["high"] else 4,
+                })
+        has_specific = any(r["source"] in ("canonical", "fuzzy") for r in all_risks)
+        severity_score = min(({"high": 9, "medium": 6, "low": 3}.get(level, 3)) + (1 if has_specific else 0), 10)
 
         findings.append({
             "index": i,
@@ -95,6 +137,8 @@ def analyze_text(db: Session, text: str, scene_id: str = "") -> dict:
             "consequence": consequence,
             "correction": correction,
             "related_case_ids": related_case_ids,
+            "all_risks": all_risks,
+            "severity_score": severity_score,
         })
         summary[level] += 1
 

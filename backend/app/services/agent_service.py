@@ -12,7 +12,7 @@ from typing import List
 from app.services.prompt_service import get_template
 from app.services.rag_service import RAGService, _tokenize, try_ollama_generate, try_ollama_generate_async
 from app.services.scoring_service import compute_risk_score, none_breakdown
-from app.services.risk_outcomes import get_risk_outcome
+from app.services.risk_outcomes import get_risk_outcome, match_risk_outcome
 from app.config import settings
 
 # 风险关键词分级（用于规则引擎降级路径）
@@ -277,6 +277,8 @@ DOMAIN_WORDS = [
 
 def _keyword_hits(behavior: str) -> dict:
     """统计各等级关键词命中数。"""
+    # 归一化：倒进 ≡ 倒入（化学语境下同义），避免「水入酸」等方向性危险因措辞不同被漏判为低风险
+    behavior = behavior.replace("倒进", "倒入")
     hits = {"high": [], "medium": [], "low": []}
     for level, kws in RISK_KEYWORDS.items():
         for kw in kws:
@@ -380,7 +382,7 @@ _SAFE_VERBS = [
     "清理", "盖好", "按规范", "遵守", "撤离",
     "已佩戴", "已关闭", "已断开", "已盖", "已通风", "合格",
     # —— 已正确执行类（防 RAG 把“先X/已X”误配到“未X”否定条款）——
-    "检查", "验纯", "加沸石", "加碎瓷片", "冷却", "水封", "浸没",
+    "检查", "验纯", "加沸石", "加碎瓷片", "预热", "冷却", "水封", "浸没",
     "煤油", "撒砂土", "润洗", "平视", "通冷凝水", "先通水",
 ]
 # 不可被安全语境覆盖的「明确危险动作」短语。
@@ -530,11 +532,18 @@ def _consequence_text(behavior: str, level: str, hits: dict, refs: List[dict]) -
             "以便进行精准的风险推演。"
         )
 
-    # 优先按命中的风险点 description 取具体后果
-    for ref in refs:
-        outcome = get_risk_outcome(ref.get("description", ""))
-        if outcome:
-            return str(outcome["consequence"])
+    # 仅 high/medium 风险才返回具体（危险）后果，守诚实边界：
+    # 低风险/无风险步骤不配具体事故后果，避免「低风险却说严重灼伤」的矛盾。
+    if level in ("high", "medium"):
+        # 优先按命中的风险点 description 取具体后果
+        for ref in refs:
+            outcome = get_risk_outcome(ref.get("description", ""))
+            if outcome:
+                return str(outcome["consequence"])
+        # 精确映射未命中：用模糊匹配兜底（近似描述也能拿到具体后果，而非通用套话）
+        fuzzy = match_risk_outcome(behavior)
+        if fuzzy:
+            return str(fuzzy["consequence"])
 
     # 无精确映射时的轻量回退
     hit_kws = (hits["high"] + hits["medium"])[:3]
@@ -564,12 +573,20 @@ def _correction_text(behavior: str, level: str, hits: dict, refs: List[dict]) ->
             "3. 可参考下方示例或切换场景模式后重试。"
         )
 
-    for ref in refs:
-        outcome = get_risk_outcome(ref.get("description", ""))
-        if outcome:
-            steps = list(outcome.get("correction_steps", []))
+    # 仅 high/medium 风险才返回具体整改步骤，守诚实边界（与 consequence 同口径）
+    if level in ("high", "medium"):
+        for ref in refs:
+            outcome = get_risk_outcome(ref.get("description", ""))
+            if outcome:
+                steps = list(outcome.get("correction_steps", []))
+                if steps:
+                    # 统一用 1. 2. 3. 编号
+                    return "\n".join(f"{i + 1}. {s}" for i, s in enumerate(steps))
+        # 精确映射未命中：用模糊匹配兜底，拿到针对性整改步骤
+        fuzzy = match_risk_outcome(behavior)
+        if fuzzy:
+            steps = list(fuzzy.get("correction_steps", []))
             if steps:
-                # 统一用 1. 2. 3. 编号
                 return "\n".join(f"{i + 1}. {s}" for i, s in enumerate(steps))
 
     lines = [
@@ -944,7 +961,7 @@ class AgentService:
         narrative_reply = _ground_actor_reply(raw_reply, behavior, consequence) if raw_reply else ""
         trust_mode = "llm_enhanced" if narrative_reply else "rule_deterministic"
         verified_by = "rule_engine"
-        critic_divergence = 0
+        critic_divergence = False
         critic_reply = None
         if raw_reply:
             verified_by = "rule_engine+llm_critic"
@@ -968,7 +985,7 @@ class AgentService:
                 # （如 "我今天有点累" / "实验挺简单的" 等本无风险声明的输入都会被判红）。
                 # 因此：无论规则置信度高低，critic 的「需修正」一律只标记为「分歧」，
                 # 绝不修改 _critic_validate 的确定性结果——ai_checked 为 0 仅当规则发现硬伤。
-                critic_divergence = 1
+                critic_divergence = True
                 if ai_checked == 1:
                     # 规则已确定性通过，但模型有保留意见 -> 以规则为准，诚实标注分歧。
                     model_label = "千问模型" if settings.AI_PROVIDER == "cloud" else "本地模型"
