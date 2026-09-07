@@ -14,6 +14,7 @@ from app.services.rag_service import RAGService, _tokenize, try_ollama_generate,
 from app.services.scoring_service import compute_risk_score, none_breakdown
 from app.services.risk_outcomes import get_risk_outcome, match_risk_outcome
 from app.services.slot_classifier import classify_safety, _dilution_intent
+from app.services import rules_store
 from app.config import settings
 
 # 风险关键词分级（用于规则引擎降级路径）
@@ -391,6 +392,8 @@ _SAFE_VERBS = [
     "不超过",                        # 液体不超过1/3并移动（vs 超过1/3）
 ]
 # 不可被安全语境覆盖的「明确危险动作」短语。
+# 注：内置默认种子源；运行时判定统一走 app.services.rules_store（可经 /api/v1/rules 编辑），
+# 此处默认与接口自定义项「并集」生效。新增/删除危险短语请改此处或走接口。
 # 注意：只收录“正确操作绝不会出现的危险动作短语”；凡是可能被正确语境
 # 包裹的裸词（如“明火”会被“确认无明火”包含、“沸石”会被“已加沸石”包含、
 # “气密性”会被“检查气密性”包含、“验纯”会被“先验纯”包含、“防毒面具”会被
@@ -476,6 +479,9 @@ _HARD_DANGER = [
     "试剂瓶直接加热", "直接置于热源",
     "温度计搅拌", "温度计代搅拌",
     "废液倒入水槽", "倒入水槽", "酸液倒入水槽",
+    # —— 补规则缺口：徒手/裸手接触热的蒸发皿、徒手取用固体药品（原仅覆盖徒手拿试剂）——
+    "徒手拿蒸发皿", "用手拿蒸发皿", "徒手端蒸发皿", "徒手拿热蒸发皿", "手拿热蒸发皿",
+    "徒手抓固体", "徒手取固体", "直接用手取药品", "用手直接取药品",
 ]
 
 
@@ -500,7 +506,7 @@ def _is_prohibition_statement(behavior: str) -> bool:
     而非正在执行危险动作 → 应判低风险。仅当显式禁止词 + 实验领域 + 非「遗漏防护」时成立，
     避免把"未戴护目镜"等真实危险也降级。"""
     b = behavior.replace("倒进", "倒入")
-    if not any(p in b for p in _PROHIBIT_WORDS):
+    if not any(p in b for p in rules_store.get_prohibit_words()):
         return False
     if not _is_domain_input(b):
         return False
@@ -561,7 +567,7 @@ def _ppe_downgrade_blocked(behavior: str) -> bool:
     用于堵住「戴好护目镜进行钠与水反应实验」「佩戴护目镜将酸性废液倒入水槽」这类
     因提及防护而被误降为 low 的回归（PPE 是必要非充分条件）。
     """
-    if any(p in behavior for p in _REACTIVE_PAT):
+    if any(p in behavior for p in rules_store.get_reactive_pat()):
         return True
     if _dilution_intent(behavior) == "wrong":  # 水入酸（危险稀释方向）
         return True
@@ -589,7 +595,7 @@ def _safe_context_override(behavior: str, level: str) -> str:
     if _is_prohibition_statement(behavior):
         return "low"
     # —— 2) 含明确危险动作短语 -> 不降级（以硬规则为准，防正确操作里夹带真实危险被误降）——
-    if any(d in behavior for d in _HARD_DANGER):
+    if any(d in behavior for d in rules_store.get_hard_danger()):
         return level
     # —— 3a) 正确安全操作（方向/去向）：强正确信号，即便字面含危险词也可降级 ——
     if _is_correct_safe_operation(behavior):
@@ -609,7 +615,7 @@ def _safe_context_override(behavior: str, level: str) -> str:
         NEG_WORDS = ("没有", "没", "未", "不", "别", "无", "切勿", "禁止", "严禁",
                      "忘记", "忽略", "省略", "无需", "无须", "未用", "未戴", "未穿")
         WIN = 12
-        for v in _SAFE_VERBS:
+        for v in rules_store.get_safe_verbs():
             idx = behavior.find(v)
             while idx != -1:
                 window = behavior[max(0, idx - WIN):idx]
@@ -994,7 +1000,7 @@ class AgentService:
         # 高危信号取「RISK_KEYWORDS 命中」或「_HARD_DANGER 明确危险动作短语命中」二者之一
         # （_keyword_hits 只遍历 RISK_KEYWORDS，会漏掉落在 _HARD_DANGER 里的明确危险短语，
         #  故这里显式补上 _HARD_DANGER 命中），与 compute_risk_score 的内部逻辑保持一致。
-        kw_signal = bool(hits["high"]) or any(d in behavior for d in _HARD_DANGER)
+        kw_signal = bool(hits["high"]) or any(d in behavior for d in rules_store.get_hard_danger())
         none_case = out_of_domain and not strong_ref and not kw_signal
         if none_case:
             level = "none"

@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.api.v1 import (assignment, auth, avatar, cases, companion, dashboard, docs,
-                        feedback, meta, org, profile, quiz, report, risk_point,
+                        feedback, meta, org, profile, quiz, report, risk_point, rules,
                         scenario, scan, scene_system, simulation, system, tts)
 from app.config import settings
 from app.core.request_log import RequestLoggingMiddleware
@@ -116,6 +116,7 @@ api_v1 = [
     system.router,
     meta.router,
     risk_point.router,
+    rules.router,
     feedback.router,
     tts.router,
 ]
