@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../../api/auth'
 import useAuthStore from '../../store/authStore'
 
-const PROTECTED_PREFIX = '/dashboard|/scenario|/sandbox|/profile|/scan|/cases|/docs|/quiz|/admin|/training|/sim|/users'
+const PROTECTED_PREFIX = '/dashboard|/scenario|/sandbox|/profile|/scan|/cases|/docs|/quiz|/admin|/training|/sim|/users|/nexus'
 
 export default function Login() {
   const [username, setUsername] = useState('student')
@@ -20,11 +20,14 @@ export default function Login() {
     try {
       const data = await login(u, p)
       setAuth(data.token, data.user)
+      // 按角色落地：学生进数字人主页 /nexus，教师/管理员进工作台 /dashboard
+      const role = data.user?.role
+      const home = role === 'student' ? '/nexus' : '/dashboard'
       const from = location.state?.from
       if (from && new RegExp(`^(${PROTECTED_PREFIX})`).test(from.pathname)) {
         navigate(from.pathname, { replace: true })
       } else {
-        navigate('/dashboard', { replace: true })
+        navigate(home, { replace: true })
       }
     } catch (err) {
       setError(err.message)
