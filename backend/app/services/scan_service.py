@@ -18,6 +18,7 @@ from app.services.agent_service import (
 )
 from app.services.rag_service import RAGService
 from app.services.risk_outcomes import get_risk_outcome, match_risk_outcome
+from app.services.required_steps import detect_missing_steps
 
 
 def _split_steps(text: str) -> List[str]:
@@ -83,6 +84,7 @@ def analyze_text(db: Session, text: str, scene_id: str = "") -> dict:
             level = "low"
 
         # 安全语境修正：规避/正确执行危险动作的步骤不应判高危
+        orig_level = level
         level = _safe_context_override(step, level)
 
         consequence = _consequence_text(step, level, hits, refs)
@@ -141,11 +143,23 @@ def analyze_text(db: Session, text: str, scene_id: str = "") -> dict:
             "related_case_ids": related_case_ids,
             "all_risks": all_risks,
             "severity_score": severity_score,
+            # 方案4：预测溯源（可解释证据链），便于答辩展示与回归审计
+            "trace": {
+                "orig_level": orig_level,
+                "safe_override": orig_level != level,
+                "matched_clause_refs": [r.get("clause_ref", "") for r in refs],
+                "ref_match_scores": [round(r.get("match_score", 0), 3) for r in refs],
+                "domain_input": is_domain,
+            },
         })
         summary[level] += 1
+
+    # 方案1：整份方案的缺失安全检查点（清单覆盖度，非评级）
+    missing_steps = detect_missing_steps(text, scene_type)
 
     return {
         "total_steps": len(steps),
         "summary": summary,
         "findings": findings,
+        "missing_steps": missing_steps,
     }

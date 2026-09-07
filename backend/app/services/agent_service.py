@@ -13,6 +13,7 @@ from app.services.prompt_service import get_template
 from app.services.rag_service import RAGService, _tokenize, try_ollama_generate, try_ollama_generate_async
 from app.services.scoring_service import compute_risk_score, none_breakdown
 from app.services.risk_outcomes import get_risk_outcome, match_risk_outcome
+from app.services.slot_classifier import classify_safety
 from app.config import settings
 
 # 风险关键词分级（用于规则引擎降级路径）
@@ -531,10 +532,10 @@ def _is_correct_safe_operation(behavior: str) -> bool:
                 return True
     # 2) 正确废液/试剂去向
     if any(k in b for k in ("废液", "液体", "试剂", "残液")) and any(
-        d in b for d in ("倒入", "倒进", "排入", "放入", "收集到")
+        d in b for d in ("倒入", "倒进", "排入", "放入", "收集到", "回收到", "回收")
     ):
         _SAFE_DEST = ("废液桶", "指定容器", "指定废液缸", "回收瓶", "回收桶",
-                      "废液缸", "专用容器", "回收", "收集瓶", "废液收集")
+                      "废液缸", "专用容器", "回收", "收集瓶", "废液收集", "废液桶里")
         _BAD_DEST = ("下水道", "水槽", "厕所", "河流", "地沟", "阴沟",
                      "排水", "洗手池", "马桶", "雨水")
         if any(s in b for s in _SAFE_DEST) and not any(x in b for x in _BAD_DEST):
@@ -548,16 +549,24 @@ def _safe_context_override(behavior: str, level: str) -> str:
     用于消除误报（如「关闭酒精灯并确认无明火」被「明火」关键词、
     「将浓硫酸缓慢沿杯壁倒入水中」被「倒入」误判为高危）。
     仅当步骤不含明确危险动作短语时才降级，避免漏判真实危险。
+
+    判定顺序（与诚实性/不漏判双目标一致）：
+    1) 禁止/告诫陈述 → 降级（意图非执行危险动作，优先级最高，即便字面含危险短语）；
+    2) 含 _HARD_DANGER 明确危险动作短语 → 绝不降级（防「戴好护目镜但用嘴吸」被 PPE 误降）；
+    3) 正确安全操作（方向/去向/结构化槽位判定）→ 降级；
+    4) 安全动词兜底（_SAFE_VERBS）。
     """
     if level not in ("high", "medium"):
         return level
-    # —— 诚实性补强：否定/禁止陈述、正确方向/去向操作优先降级为低风险，
-    # 避免安全/正确表述被误配具体事故后果（见 _is_prohibition_statement / _is_correct_safe_operation）——
-    if _is_prohibition_statement(behavior) or _is_correct_safe_operation(behavior):
+    # —— 1) 禁止/告诫陈述优先降级为低风险（诚实性补强，见 _is_prohibition_statement）——
+    if _is_prohibition_statement(behavior):
         return "low"
-    # 含明确危险动作短语 -> 不降级（以硬规则为准）
+    # —— 2) 含明确危险动作短语 -> 不降级（以硬规则为准，防正确操作里夹带真实危险被误降）——
     if any(d in behavior for d in _HARD_DANGER):
         return level
+    # —— 3) 正确安全操作（方向/去向）或结构化槽位判定为正确/禁止 -> 降级（方案2）——
+    if _is_correct_safe_operation(behavior) or classify_safety(behavior)["intent"] in ("correct_safe", "prohibition"):
+        return "low"
     # 存在正向防护动作且无硬危险 -> 降级为低风险。
     # 注意：防护词若被否定则不是安全动作，不能降级。否定词未必紧贴防护词
     # （如"未用待装液润洗""忘记加沸石"），故向前扫描一个窗口（WIN 字）内
