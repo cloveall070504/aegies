@@ -13,7 +13,7 @@ from app.services.prompt_service import get_template
 from app.services.rag_service import RAGService, _tokenize, try_ollama_generate, try_ollama_generate_async
 from app.services.scoring_service import compute_risk_score, none_breakdown
 from app.services.risk_outcomes import get_risk_outcome, match_risk_outcome
-from app.services.slot_classifier import classify_safety
+from app.services.slot_classifier import classify_safety, _dilution_intent
 from app.config import settings
 
 # 风险关键词分级（用于规则引擎降级路径）
@@ -412,6 +412,7 @@ _HARD_DANGER = [
     "骤冷炸裂",
     "混放", "氧化剂混放", "易燃物混放",
     "钠遇水", "钾遇水", "活泼金属遇水", "遇水剧烈",
+    "钠与水", "钾与水", "金属与水", "金属钠", "金属钾",
     "白磷暴露", "白磷露置", "白磷自燃",
     "湿手", "湿手触摸", "湿手摸",
     "密闭容器加热", "封口试管加热", "密闭加热",
@@ -474,6 +475,7 @@ _HARD_DANGER = [
     "未水浴", "直接明火加热",
     "试剂瓶直接加热", "直接置于热源",
     "温度计搅拌", "温度计代搅拌",
+    "废液倒入水槽", "倒入水槽", "酸液倒入水槽",
 ]
 
 
@@ -543,6 +545,29 @@ def _is_correct_safe_operation(behavior: str) -> bool:
     return False
 
 
+# 活泼金属/遇水反应/水入酸 等「仅靠提及防护无法消解」的明确危险。
+# 这些短语出现时，即便句子同时提到「戴护目镜」等防护，也绝不允许降级为低风险
+# （戴护目镜是必要非充分条件，不能让整步危险操作变安全）。
+# 注意：用「钠与水/与水反应」而非裸「钠」，避免「氯化钠」等安全试剂被误伤。
+_REACTIVE_PAT = (
+    "钠与水", "钾与水", "金属钠", "金属钾", "活泼金属", "白磷", "电石",
+    "遇水剧烈", "与水反应", "钠遇水", "钾遇水",
+)
+
+
+def _ppe_downgrade_blocked(behavior: str) -> bool:
+    """当步骤含「活泼金属/遇水反应/水入酸」等明确危险时，PPE/安全动词不得降级它。
+
+    用于堵住「戴好护目镜进行钠与水反应实验」「佩戴护目镜将酸性废液倒入水槽」这类
+    因提及防护而被误降为 low 的回归（PPE 是必要非充分条件）。
+    """
+    if any(p in behavior for p in _REACTIVE_PAT):
+        return True
+    if _dilution_intent(behavior) == "wrong":  # 水入酸（危险稀释方向）
+        return True
+    return False
+
+
 def _safe_context_override(behavior: str, level: str) -> str:
     """安全语境修正：当步骤明显在规避/正确执行危险动作时，降级为低风险。
 
@@ -553,8 +578,10 @@ def _safe_context_override(behavior: str, level: str) -> str:
     判定顺序（与诚实性/不漏判双目标一致）：
     1) 禁止/告诫陈述 → 降级（意图非执行危险动作，优先级最高，即便字面含危险短语）；
     2) 含 _HARD_DANGER 明确危险动作短语 → 绝不降级（防「戴好护目镜但用嘴吸」被 PPE 误降）；
-    3) 正确安全操作（方向/去向/结构化槽位判定）→ 降级；
-    4) 安全动词兜底（_SAFE_VERBS）。
+    3) 正确安全操作（方向/去向）→ 降级（强正确信号）；
+       结构化槽位判定为 prohibition → 降级（告诫他人，非执行危险）；
+       结构化槽位判定为 correct_safe（PPE 已佩戴等）→ 仅在无活泼金属/遇水/水入酸危险时降级；
+    4) 安全动词兜底（_SAFE_VERBS）：同样在无上述明确危险时才能降级。
     """
     if level not in ("high", "medium"):
         return level
@@ -564,24 +591,32 @@ def _safe_context_override(behavior: str, level: str) -> str:
     # —— 2) 含明确危险动作短语 -> 不降级（以硬规则为准，防正确操作里夹带真实危险被误降）——
     if any(d in behavior for d in _HARD_DANGER):
         return level
-    # —— 3) 正确安全操作（方向/去向）或结构化槽位判定为正确/禁止 -> 降级（方案2）——
-    if _is_correct_safe_operation(behavior) or classify_safety(behavior)["intent"] in ("correct_safe", "prohibition"):
+    # —— 3a) 正确安全操作（方向/去向）：强正确信号，即便字面含危险词也可降级 ——
+    if _is_correct_safe_operation(behavior):
         return "low"
-    # 存在正向防护动作且无硬危险 -> 降级为低风险。
-    # 注意：防护词若被否定则不是安全动作，不能降级。否定词未必紧贴防护词
+    # —— 3b) 结构化槽位：禁止陈述降级；correct_safe（如已佩戴防护）仅在无明确危险时降级 ——
+    cs_intent = classify_safety(behavior)["intent"]
+    if cs_intent == "prohibition":
+        return "low"
+    if cs_intent == "correct_safe" and not _ppe_downgrade_blocked(behavior):
+        return "low"
+    # —— 4) 安全动词兜底（_SAFE_VERBS）：存在正向防护/正确动作且无硬危险 -> 降级。
+    # 防护词若被否定则不是安全动作，不能降级；否定词未必紧贴防护词
     # （如"未用待装液润洗""忘记加沸石"），故向前扫描一个窗口（WIN 字）内
-    # 是否出现任意否定词来判断，避免把"未X/忘记X"误判为安全执行。
-    NEG_WORDS = ("没有", "没", "未", "不", "别", "无", "切勿", "禁止", "严禁",
-                 "忘记", "忽略", "省略", "无需", "无须", "未用", "未戴", "未穿")
-    WIN = 12
-    for v in _SAFE_VERBS:
-        idx = behavior.find(v)
-        while idx != -1:
-            window = behavior[max(0, idx - WIN):idx]
-            negated = any(n in window for n in NEG_WORDS)
-            if not negated:
-                return "low"
-            idx = behavior.find(v, idx + 1)
+    # 是否出现任意否定词来判断。此外，若含活泼金属/遇水/水入酸等明确危险，
+    # PPE/安全动词不得将其降级（戴护目镜≠操作安全）。
+    if not _ppe_downgrade_blocked(behavior):
+        NEG_WORDS = ("没有", "没", "未", "不", "别", "无", "切勿", "禁止", "严禁",
+                     "忘记", "忽略", "省略", "无需", "无须", "未用", "未戴", "未穿")
+        WIN = 12
+        for v in _SAFE_VERBS:
+            idx = behavior.find(v)
+            while idx != -1:
+                window = behavior[max(0, idx - WIN):idx]
+                negated = any(n in window for n in NEG_WORDS)
+                if not negated:
+                    return "low"
+                idx = behavior.find(v, idx + 1)
     return level
 
 

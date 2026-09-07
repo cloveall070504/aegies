@@ -30,6 +30,9 @@ DANGER = [
     "闻试剂气味时鼻子直接凑近瓶口",
     "未穿实验服未扎长发进行化学实验",
     "加热试管内液体超过容积三分之一导致暴沸喷溅",
+    # 回归护栏：提及防护（戴护目镜）绝不能让真实危险操作变安全
+    "戴好护目镜进行钠与水反应实验",
+    "佩戴护目镜将酸性废液倒入水槽",
 ]
 
 # 安全/正确案例：期望 low，且不列任何具体风险点
@@ -86,6 +89,22 @@ def test_correct_operation_boundary():
     assert _is_correct_safe_operation(
         "稀释浓硫酸应将浓硫酸缓慢倒入水中并不断搅拌"
     ) is True
+
+
+def test_ppe_does_not_mask_hazard(session):
+    """回归护栏：提及「戴护目镜」等防护，不得把真实危险操作降级为 low。
+
+    戴护目镜是必要非充分条件，不能让「钠与水反应」「废液倒入水槽」这类危险变安全。
+    """
+    from app.services.scan_service import analyze_text
+    for text in (
+        "戴好护目镜进行钠与水反应实验",
+        "佩戴护目镜将酸性废液倒入水槽",
+        "穿好实验服后把强酸直接倒入下水道",
+    ):
+        res = analyze_text(session, text, "")
+        f = res["findings"][0]
+        assert f["level"] in ("high", "medium"), f"防护提及掩盖了真实危险: {text} -> {f['level']}"
 
 
 def test_slot_classifier():
