@@ -102,29 +102,31 @@ def analyze_text(db: Session, text: str, scene_id: str = "") -> dict:
                 if c.id not in related_case_ids:
                     related_case_ids.append(c.id)
 
-        # 多风险并发：收集本步命中的所有风险点（不止第一个），供前端展示与排序
+        # 多风险并发：仅对 high/medium 步骤收集命中风险点（不止第一个），供前端展示与排序。
+        # 已降级为 low 的安全/正确步骤不再挂具体风险点，避免「低风险却列 N 处风险」的矛盾。
         all_risks = []
-        _seen = set()
-        for ref in refs:
-            out = get_risk_outcome(ref.get("description", ""))
-            if out:
-                desc = ref.get("description", "")
-                if desc not in _seen:
-                    _seen.add(desc)
-                    all_risks.append(_risk_block(desc, "canonical", ref.get("level", level), out))
-        fuzzy = match_risk_outcome(step)
-        if fuzzy and fuzzy.get("consequence") not in _seen:
-            _seen.add(fuzzy.get("consequence"))
-            all_risks.append(_risk_block(step, "fuzzy", level, fuzzy))
-        for kw in (hits["high"] + hits["medium"]):
-            if kw not in _seen:
-                _seen.add(kw)
-                all_risks.append({
-                    "source": "keyword", "match": kw,
-                    "level": "high" if kw in hits["high"] else "medium",
-                    "consequence": "", "correction": "",
-                    "severity_score": 6 if kw in hits["high"] else 4,
-                })
+        if level in ("high", "medium"):
+            _seen = set()
+            for ref in refs:
+                out = get_risk_outcome(ref.get("description", ""))
+                if out:
+                    desc = ref.get("description", "")
+                    if desc not in _seen:
+                        _seen.add(desc)
+                        all_risks.append(_risk_block(desc, "canonical", ref.get("level", level), out))
+            fuzzy = match_risk_outcome(step)
+            if fuzzy and fuzzy.get("consequence") not in _seen:
+                _seen.add(fuzzy.get("consequence"))
+                all_risks.append(_risk_block(step, "fuzzy", level, fuzzy))
+            for kw in (hits["high"] + hits["medium"]):
+                if kw not in _seen:
+                    _seen.add(kw)
+                    all_risks.append({
+                        "source": "keyword", "match": kw,
+                        "level": "high" if kw in hits["high"] else "medium",
+                        "consequence": "", "correction": "",
+                        "severity_score": 6 if kw in hits["high"] else 4,
+                    })
         has_specific = any(r["source"] in ("canonical", "fuzzy") for r in all_risks)
         severity_score = min(({"high": 9, "medium": 6, "low": 3}.get(level, 3)) + (1 if has_specific else 0), 10)
 

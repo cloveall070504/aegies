@@ -472,6 +472,72 @@ _HARD_DANGER = [
 ]
 
 
+# —— 否定/禁止句式与正确方向/去向识别（诚实性补强）——
+# 背景：RAG(_ref_based_level) 与「水入酸」方向性检测只认关键词共现，无法区分
+# 「禁止把水倒进浓硫酸」（规则陈述）与「把水倒进浓硫酸」（真实危险动作），
+# 也无法区分「将浓硫酸倒入水中」（正确稀释）与「将水倒入浓硫酸」（错误倾倒）。
+# 这两类误判会让安全/正确表述被配具体事故后果，违背「唯一事实源、不吹过头」原则。
+# 故在 _safe_context_override 中优先降级：否定/禁止陈述、正确方向/去向操作 → low。
+
+_PROHIBIT_WORDS = (
+    "禁止", "严禁", "切勿", "绝不可", "绝对不", "千万不能", "不可",
+    "不可以", "不能", "别", "勿", "不要", "不许", "不让", "不应", "不得",
+)
+
+# 「未/没 + 防护动作」是真实危险（没戴护目镜、未断电…），即便巧合含禁止词也不降级
+_OMISSION_RE = re.compile(r"(未|没|没有|无)(戴|穿|佩戴|戴护目镜|穿实验服|断电|关闭|熄灭|验纯|查气密|洗手|盖)")
+
+
+def _is_prohibition_statement(behavior: str) -> bool:
+    """步骤为「告诫/禁止他人做某事」的规则陈述（如"我不可以把水倒进浓硫酸"），
+    而非正在执行危险动作 → 应判低风险。仅当显式禁止词 + 实验领域 + 非「遗漏防护」时成立，
+    避免把"未戴护目镜"等真实危险也降级。"""
+    b = behavior.replace("倒进", "倒入")
+    if not any(p in b for p in _PROHIBIT_WORDS):
+        return False
+    if not _is_domain_input(b):
+        return False
+    if _OMISSION_RE.search(b):
+        return False
+    return True
+
+
+def _is_correct_safe_operation(behavior: str) -> bool:
+    """步骤本身是正确/安全的执行（而非危险动作），应判低风险：
+    1) 正确稀释方向：浓硫酸先出现、倒入后出现、水在倒入之后（酸入水）；
+    2) 正确废液去向：废液/试剂倒入指定/回收容器，且无危险去向（下水道等）。"""
+    b = behavior.replace("倒进", "倒入")
+    # 1) 正确稀释：酸入水（含显式安全标志）
+    _SAFE_DILUTION_HINTS = ("酸入水", "沿杯壁", "沿器壁", "缓慢加入水中",
+                            "缓缓注入水中", "将酸加入水中", "沿杯壁加入")
+    if any(s in b for s in _SAFE_DILUTION_HINTS):
+        return True
+    _ACID = ("浓硫酸", "浓酸", "强酸", "盐酸", "硝酸", "硫酸")
+    _POUR = ("倒入", "加入", "加进", "注入", "倒进")
+    for a in _ACID:
+        ai = b.find(a)
+        if ai == -1:
+            continue
+        for pv in _POUR:
+            pi = b.find(pv)
+            if pi == -1:
+                continue
+            if ai < pi and "水" in b[pi + len(pv):]:
+                # 酸在倾倒动词之前、水在之后 → 酸入水（正确稀释）
+                return True
+    # 2) 正确废液/试剂去向
+    if any(k in b for k in ("废液", "液体", "试剂", "残液")) and any(
+        d in b for d in ("倒入", "倒进", "排入", "放入", "收集到")
+    ):
+        _SAFE_DEST = ("废液桶", "指定容器", "指定废液缸", "回收瓶", "回收桶",
+                      "废液缸", "专用容器", "回收", "收集瓶", "废液收集")
+        _BAD_DEST = ("下水道", "水槽", "厕所", "河流", "地沟", "阴沟",
+                     "排水", "洗手池", "马桶", "雨水")
+        if any(s in b for s in _SAFE_DEST) and not any(x in b for x in _BAD_DEST):
+            return True
+    return False
+
+
 def _safe_context_override(behavior: str, level: str) -> str:
     """安全语境修正：当步骤明显在规避/正确执行危险动作时，降级为低风险。
 
@@ -481,6 +547,10 @@ def _safe_context_override(behavior: str, level: str) -> str:
     """
     if level not in ("high", "medium"):
         return level
+    # —— 诚实性补强：否定/禁止陈述、正确方向/去向操作优先降级为低风险，
+    # 避免安全/正确表述被误配具体事故后果（见 _is_prohibition_statement / _is_correct_safe_operation）——
+    if _is_prohibition_statement(behavior) or _is_correct_safe_operation(behavior):
+        return "low"
     # 含明确危险动作短语 -> 不降级（以硬规则为准）
     if any(d in behavior for d in _HARD_DANGER):
         return level
