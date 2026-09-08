@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from app.api.v1 import (assignment, auth, avatar, cases, coach, companion, dashboard, docs,
                         feedback, meta, org, profile, quiz, report, risk_point, rules,
-                        scenario, scan, scene_system, simulation, system, tts)
+                        scenario, scan, scene_system, simulation, system, telemetry, tts)
 from app.config import settings
 from app.core.request_log import RequestLoggingMiddleware
 from app.core.ratelimit import RateLimitMiddleware
@@ -120,6 +120,7 @@ api_v1 = [
     rules.router,
     feedback.router,
     tts.router,
+    telemetry.router,
 ]
 for r in api_v1:
     app.include_router(r, prefix=settings.API_V1_PREFIX)

@@ -136,6 +136,19 @@ body[data-theme='light'] .select {
 
 * { box-sizing: border-box; }
 
+/* 无障碍辅助类：仅对屏幕阅读器可见，正常显示时彻底隐藏（此前缺失导致文案漏出） */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 html, body, #root { height: 100%; }
 
 body {

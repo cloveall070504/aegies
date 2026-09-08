@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数字人功能清单</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e1a;--card:rgba(17,24,39,0.6);--border:rgba(0,229,255,0.15);
+  --cyan:#00e5ff;--purple:#a855f7;--pink:#ec4899;--green:#10b981;
+  --text:#f1f5f9;--text-2:#94a3b8;--text-3:#64748b;
+}
+body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+.container{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:40px 24px 80px}
+
+/* 头部 */
+.header{text-align:center;margin-bottom:56px}
+.header h1{font-size:32px;font-weight:700;background:linear-gradient(90deg,var(--cyan),var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+.header p{font-size:14px;color:var(--text-2);letter-spacing:0.08em}
+.header .line{width:60px;height:3px;background:linear-gradient(90deg,var(--cyan),var(--purple));margin:16px auto 0;border-radius:2px}
+
+/* 分类标签 */
+.section{margin-bottom:48px}
+.section-title{display:flex;align-items:center;gap:12px;margin-bottom:24px;font-size:18px;font-weight:600;color:var(--text)}
+.section-title .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.section-title .tag{font-size:11px;font-weight:400;padding:2px 10px;border-radius:999px;border:1px solid var(--border);color:var(--text-3);letter-spacing:0.06em}
+
+/* 功能卡片网格 */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+
+.card{position:relative;padding:20px 22px;border-radius:16px;background:var(--card);border:1px solid var(--border);backdrop-filter:blur(10px);transition:transform 0.3s,box-shadow 0.3s,border-color 0.3s;overflow:hidden}
+.card:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(0,229,255,0.12);border-color:rgba(0,229,255,0.35)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0.6}
+.card.done::before{background:linear-gradient(90deg,var(--cyan),var(--purple))}
+.card.todo::before{background:linear-gradient(90deg,var(--text-3),var(--purple))}
+
+.card-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.card.done .card-icon{background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.25)}
+.card.todo .card-icon{background:rgba(100,116,139,0.1);border:1px solid rgba(100,116,139,0.2)}
+.card-title{font-size:15px;font-weight:600;line-height:1.4}
+.card-badge{font-size:10px;padding:2px 8px;border-radius:999px;letter-spacing:0.04em;flex:none}
+.card.done .card-badge{background:rgba(16,185,129,0.12);color:var(--green);border:1px solid rgba(16,185,129,0.25)}
+.card.todo .card-badge{background:rgba(168,85,247,0.1);color:var(--purple);border:1px solid rgba(168,85,247,0.2)}
+.card-desc{font-size:13px;color:var(--text-2);line-height:1.6}
+.card-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.card-tags span{font-size:11px;padding:2px 8px;border-radius:6px;background:rgba(0,229,255,0.06);color:var(--text-3);border:1px solid rgba(0,229,255,0.08)}
+
+/* 表情列表 */
+.expr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.expr-item{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 12px;border-radius:14px;background:var(--card);border:1px solid var(--border);transition:border-color 0.3s,transform 0.3s}
+.expr-item:hover{border-color:rgba(0,229,255,0.3);transform:translateY(-2px)}
+.expr-svg{width:48px;height:48px}
+.expr-name{font-size:12px;color:var(--text-2)}
+.expr-name strong{color:var(--text);font-weight:600}
+
+/* 统计 */
+.stats{display:flex;gap:24px;justify-content:center;margin-bottom:48px}
+.stat{text-align:center}
+.stat-num{font-size:36px;font-weight:700;font-family:'SF Mono','Consolas',monospace}
+.stat-num.done{color:var(--cyan)}
+.stat-num.todo{color:var(--purple)}
+.stat-label{font-size:12px;color:var(--text-3);letter-spacing:0.1em;margin-top:4px}
+
+/* 引导语列表 */
+.guide-list{display:flex;flex-direction:column;gap:10px}
+.guide-item{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-radius:12px;background:var(--card);border:1px solid var(--border)}
+.guide-item .g-icon{font-size:18px;flex:none}
+.guide-item .g-text{font-size:13px;color:var(--text-2);line-height:1.6}
+.guide-item .g-text strong{color:var(--text);font-weight:600}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.card,.expr-item,.guide-item{animation:fadeUp 0.6s ease backwards}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<div class="container">
+  <div class="header">
+    <h1>数字人功能清单</h1>
+    <p>AI 数字人向导 · 化学实验安全实训平台</p>
+    <div class="line"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num done">21</div>
+      <div class="stat-label">已实现</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num todo">6</div>
+      <div class="stat-label">待补充</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" style="color:var(--pink)">27</div>
+      <div class="stat-label">总计</div>
+    </div>
+  </div>
+
+  <!-- 1. 视觉表现 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="dot" style="background:var(--cyan)"></span>
+      视觉表现
+      <span class="tag">8 项</span>
+    </div>
+    <div class="grid">
+      <div class="card done" style="animation-delay:0.05s">
+        <div class="card-head">
+          <div class="card-icon">⬡</div>
+          <div class="card-title">科技蜂窝圆脸</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">圆形脸 + 蜂窝纹理 + 渐变描边（青→紫→粉）+ 发光滤镜，营造科技感</div>
+        <div class="card-tags"><span>SVG</span><span>渐变</span><span>滤镜</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.1s">
+        <div class="card-head">
+          <div class="card-icon">😊</div>
+          <div class="card-title">8种表情切换</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">neutral / calm / happy / alert / thinking / focus / approve / surprised，通过修改椭圆参数实现</div>
+        <div class="card-tags"><span>椭圆眼</span><span>线条眉</span><span>路径嘴</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.15s">
+        <div class="card-head">
+          <div class="card-icon">👁</div>
+          <div class="card-title">自动眨眼</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">3-7秒随机间隔触发，CSS transform: scaleY(0.08) 动画，15%概率连眨两次</div>
+        <div class="card-tags"><span>CSS Transform</span><span>随机调度</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.2s">
+        <div class="card-head">
+          <div class="card-icon">👄</div>
+          <div class="card-title">嘴部开合动画</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">说话时嘴部 ellipse 开合动画，不说话时完全静止不动</div>
+        <div class="card-tags"><span> speaking 状态驱动</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.25s">
+        <div class="card-head">
+          <div class="card-icon">🫁</div>
+          <div class="card-title">呼吸动画</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">SVG 整体 scale(1.015) 微缩放，5秒周期，配合光晕呼吸营造生命感</div>
+        <div class="card-tags"><span>CSS keyframes</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.3s">
+        <div class="card-head">
+          <div class="card-icon">✨</div>
+          <div class="card-title">环境光晕</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">径向渐变光晕 + blur(30px) + 呼吸动画，说话时光晕加速变亮</div>
+        <div class="card-tags"><span>radial-gradient</span><span>blur</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.35s">
+        <div class="card-head">
+          <div class="card-icon">🎬</div>
+          <div class="card-title">进场浮现</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">透明度 0→1 + 缩放 0.85→1 + 模糊 16px→0，配合蜂窝涟漪从中心浮现</div>
+        <div class="card-tags"><span>transition</span><span>blur</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.4s">
+        <div class="card-head">
+          <div class="card-icon">🔄</div>
+          <div class="card-title">表情过渡动画</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">requestAnimationFrame 逐帧插值 + easeOutBack 缓动，400ms 平滑过渡，缓存 DOM 引用零 querySelectorAll</div>
+        <div class="card-tags"><span>rAF</span><span>easeOutBack</span><span>will-change</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 表情预览 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="dot" style="background:var(--purple)"></span>
+      表情系统预览
+      <span class="tag">8 种</span>
+    </div>
+    <div class="expr-grid" id="expr-grid"></div>
+  </div>
+
+  <!-- 3. 语音 & 字幕 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="dot" style="background:var(--green)"></span>
+      语音 & 字幕
+      <span class="tag">5 项</span>
+    </div>
+    <div class="grid">
+      <div class="card done" style="animation-delay:0.05s">
+        <div class="card-head">
+          <div class="card-icon">🔊</div>
+          <div class="card-title">TTS 语音合成</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">Web Speech API 中文女声合成，自动匹配 xiao/yue/ling 等女声</div>
+        <div class="card-tags"><span>SpeechSynthesis</span><span>zh-CN</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.1s">
+        <div class="card-head">
+          <div class="card-icon">🔓</div>
+          <div class="card-title">自动播放解锁</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">首次点击/按键解锁浏览器自动播放限制，否则显示友好提示</div>
+        <div class="card-tags"><span>pointerdown</span><span>keydown</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.15s">
+        <div class="card-head">
+          <div class="card-icon">💬</div>
+          <div class="card-title">字幕显示</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">底部胶囊字幕栏 + 脉冲圆点指示器，跟随语音实时显示</div>
+        <div class="card-tags"><span>胶囊 UI</span><span>pulse dot</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.2s">
+        <div class="card-head">
+          <div class="card-icon">🛑</div>
+          <div class="card-title">自动收声</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">TTS 结束后自动收声，兜底超时强制收声，模块切换时 hush() 清场</div>
+        <div class="card-tags"><span>onend</span><span>timeout 兜底</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.25s">
+        <div class="card-head">
+          <div class="card-icon">🎭</div>
+          <div class="card-title">语音情感联动</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">8种表情各自映射不同的语速 rate 和音调 pitch，思考时低沉缓慢，惊讶时高亢急促</div>
+        <div class="card-tags"><span>VOICE_PROFILES</span><span>rate</span><span>pitch</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 出场动画 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="dot" style="background:var(--pink)"></span>
+      出场动画
+      <span class="tag">4 项</span>
+    </div>
+    <div class="grid">
+      <div class="card done" style="animation-delay:0.05s">
+        <div class="card-head">
+          <div class="card-icon">⬛</div>
+          <div class="card-title">黑场 → 蜂窝涟漪</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">全屏黑场 → 涟漪沿蜂窝结构扩散（青/紫/粉三色波纹），400ms 开始扩散</div>
+        <div class="card-tags"><span>Canvas</span><span>六边形网格</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.1s">
+        <div class="card-head">
+          <div class="card-icon">🎯</div>
+          <div class="card-title">脸浮现 C 位</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">涟漪扩散 1500ms 后数字人脸从中心浮现，屏幕正中 C 位</div>
+        <div class="card-tags"><span>onEmerge 回调</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.15s">
+        <div class="card-head">
+          <div class="card-icon">📋</div>
+          <div class="card-title">功能逐个出现</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">2900ms 后右侧功能卡片逐个滑入，带 stagger 延迟动画</div>
+        <div class="card-tags"><span>stagger</span><span>slide-in</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.2s">
+        <div class="card-head">
+          <div class="card-icon">🌐</div>
+          <div class="card-title">持久蜂窝背景</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">出场后蜂窝背景持续运行，涟漪从数字人位置向外扩散，180s 一轮</div>
+        <div class="card-tags"><span>requestAnimationFrame</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 功能联动 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="dot" style="background:var(--cyan)"></span>
+      功能联动
+      <span class="tag">4 项</span>
+    </div>
+    <div class="grid">
+      <div class="card done" style="animation-delay:0.05s">
+        <div class="card-head">
+          <div class="card-icon">👋</div>
+          <div class="card-title">登录后问候</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">过渡结束后自动语音问候学生，告知可用功能</div>
+        <div class="card-tags"><span>speak()</span><span>expression: calm</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.1s">
+        <div class="card-head">
+          <div class="card-icon">🧭</div>
+          <div class="card-title">功能坞引导语</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">点击右侧功能卡片时数字人说引导语，7个功能各一句</div>
+        <div class="card-tags"><span>hush + speak</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.15s">
+        <div class="card-head">
+          <div class="card-icon">📐</div>
+          <div class="card-title">面板联动</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">打开功能面板时数字人左移缩小，关闭时回归 C 位</div>
+        <div class="card-tags"><span>transform</span><span>scale</span></div>
+      </div>
+      <div class="card done" style="animation-delay:0.2s">
+        <div class="card-head">
+          <div class="card-icon">🎤</div>
+          <div class="card-title">用户语音输入</div>
+          <div class="card-badge">已实现</div>
+        </div>
+        <div class="card-desc">SpeechRecognition 中文语音识别 → 调用 scenario/infer 风险推演 → 数字人按风险等级切换表情+语调语音回复</div>
+        <div class="card-tags"><span>Web Speech API</span><span>zh-CN</span><span>三态动画</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 引导语 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="dot" style="background:var(--green)"></span>
+      功能坞引导语
+      <span class="tag">7 句</span>
+    </div>
+    <div class="guide-list">
+      <div class="guide-item" style="animation-delay:0.05s">
+        <div class="g-icon">🧪</div>
+        <div class="g-text"><strong>避错沙盘：</strong>打开避错沙盘。你可以先操作，我来告诉你后果和正确做法。</div>
+      </div>
+      <div class="guide-item" style="animation-delay:0.1s">
+        <div class="g-icon">🎓</div>
+        <div class="g-text"><strong>学习中心：</strong>这是你的学习中心，按场景一步步练，我会盯着每一步。</div>
+      </div>
+      <div class="guide-item" style="animation-delay:0.15s">
+        <div class="g-icon">📚</div>
+        <div class="g-text"><strong>案例库：</strong>看看别人踩过的坑，比自己踩一次划算得多。</div>
+      </div>
+      <div class="guide-item" style="animation-delay:0.2s">
+        <div class="g-icon">📋</div>
+        <div class="g-text"><strong>我的作业：</strong>这是你的作业，做完的我帮你看看哪里还能更稳。</div>
+      </div>
+      <div class="guide-item" style="animation-delay:0.25s">
+        <div class="g-icon">📄</div>
+        <div class="g-text"><strong>文档管理：</strong>规程文档都在这儿，需要我解读哪一段随时说。</div>
+      </div>
+      <div class="guide-item" style="animation-delay:0.3s">
+        <div class="g-icon">👤</div>
+        <div class="g-text"><strong>个人画像：</strong>这是你的能力画像，薄弱项我们一起补。</div>
+      </div>
+      <div class="guide-item" style="animation-delay:0.35s">
+        <div class="g-icon">🏠</div>
+        <div class="g-text"><strong>我的主页：</strong>回到主页，这里有你的整体情况。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. 待补充 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="dot" style="background:var(--purple)"></span>
+      待补充功能
+      <span class="tag">6 项</span>
+    </div>
+    <div class="grid">
+      <div class="card todo" style="animation-delay:0.05s">
+        <div class="card-head">
+          <div class="card-icon">🎥</div>
+          <div class="card-title">LiveTalking 视频渲染</div>
+          <div class="card-badge">待补充</div>
+        </div>
+        <div class="card-desc">api/avatar.js 已定义但未调用，可接入真人视频数字人替代 SVG 脸</div>
+      </div>
+      <div class="card todo" style="animation-delay:0.1s">
+        <div class="card-head">
+          <div class="card-icon">🫀</div>
+          <div class="card-title">呼吸随情绪变化</div>
+          <div class="card-badge">待补充</div>
+        </div>
+        <div class="card-desc">固定 5s 周期，可让思考时变慢、惊讶时变快</div>
+      </div>
+      <div class="card todo" style="animation-delay:0.15s">
+        <div class="card-head">
+          <div class="card-icon">👁‍🗨</div>
+          <div class="card-title">眨眼与表情联动</div>
+          <div class="card-badge">待补充</div>
+        </div>
+        <div class="card-desc">眨眼独立定时器，可让惊讶时少眨、思考时多眨</div>
+      </div>
+      <div class="card todo" style="animation-delay:0.2s">
+        <div class="card-head">
+          <div class="card-icon">🤲</div>
+          <div class="card-title">数字人肢体动作</div>
+          <div class="card-badge">待补充</div>
+        </div>
+        <div class="card-desc">仅有头部表情，可加手势/头部转向增强表达力</div>
+      </div>
+      <div class="card todo" style="animation-delay:0.25s">
+        <div class="card-head">
+          <div class="card-icon">🤝</div>
+          <div class="card-title">与红蛋吉祥物联动</div>
+          <div class="card-badge">待补充</div>
+        </div>
+        <div class="card-desc">数字人与红蛋独立运行，可让数字人指挥红蛋做动作</div>
+      </div>
+      <div class="card todo" style="animation-delay:0.3s">
+        <div class="card-head">
+          <div class="card-icon">🧠</div>
+          <div class="card-title">上下文记忆</div>
+          <div class="card-badge">待补充</div>
+        </div>
+        <div class="card-desc">每次说话独立，可记住用户历史操作并主动提醒</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 蜂窝背景
+const canvas=document.getElementById('bg-canvas');const ctx=canvas.getContext('2d');
+const HEX_SIZE=24;const HEX_W=Math.sqrt(3)*HEX_SIZE;const HEX_H=2*HEX_SIZE;const ROW_SP=HEX_H*0.75;const COL_SP=HEX_W;
+const COLORS=[{r:0,g:229,b:255},{r:168,g:85,b:247},{r:236,g:72,b:153}];
+let cells=[],waves=[],wt=0,wi=0,dpr=Math.min(devicePixelRatio||1,2);
+function drawHex(x,y,s,c,fo,so,lw){ctx.beginPath();for(let i=0;i<6;i++){const a=(i/6)*Math.PI*2-Math.PI/2;const px=x+Math.cos(a)*s,py=y+Math.sin(a)*s;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.closePath();if(fo>0.001){ctx.fillStyle='rgba('+c+','+fo+')';ctx.fill()}ctx.strokeStyle='rgba('+c+','+so+')';ctx.lineWidth=lw;ctx.stroke()}
+function build(){cells=[];const w=canvas.clientWidth,h=canvas.clientHeight;for(let r=-1;r<Math.ceil(h/ROW_SP)+1;r++)for(let c=-1;c<Math.ceil(w/COL_SP)+1;c++){const xo=(r&1)*(HEX_W/2);cells.push({x:c*COL_SP+xo,y:r*ROW_SP,baseOp:0.01+Math.random()*0.015,brightness:0,twinkle:Math.random()*Math.PI*2,tw:0.008+Math.random()*0.012})}}
+function resize(){canvas.width=Math.floor(canvas.clientWidth*dpr);canvas.height=Math.floor(canvas.clientHeight*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);build()}
+resize();window.addEventListener('resize',resize);
+function spawn(){waves.push({radius:80,speed:1.2+Math.random()*0.4,band:55,color:COLORS[wi%3]});wi++}
+spawn();
+function animate(){const w=canvas.clientWidth,h=canvas.clientHeight;ctx.clearRect(0,0,w,h);
+const cx=w/2,cy=h*0.4;const md=Math.sqrt(Math.max(cx,w-cx)**2+Math.max(cy,h-cy)**2)+100;
+wt++;if(wt>=200){wt=0;spawn()}
+for(let i=waves.length-1;i>=0;i--){waves[i].radius+=waves[i].speed;if(waves[i].radius>md)waves.splice(i,1)}
+for(const c of cells){const dx=c.x-cx,dy=c.y-cy,d=Math.sqrt(dx*dx+dy*dy);c.twinkle+=c.tw;const amb=(Math.sin(c.twinkle)*0.5+0.5)*0.008;const cg=Math.max(0,1-d/200)*0.04;let wb=0,wc='0,229,255';for(const w of waves){const diff=Math.abs(d-w.radius);if(diff<w.band){const f=1-diff/w.band,b=f*f;if(b>wb){wb=b;wc=w.color.r+','+w.color.g+','+w.color.b}}}c.brightness=c.brightness*0.85+wb*0.15;const to=c.baseOp+amb+cg+c.brightness*0.35;if(c.brightness>0.03)drawHex(c.x,c.y,HEX_SIZE,wc,c.brightness*0.08,to,0.8);else drawHex(c.x,c.y,HEX_SIZE,'0,229,255',to*0.05,to*0.35,0.5)}
+requestAnimationFrame(animate)}
+animate();
+
+// 表情预览 SVG
+const expressions={
+  neutral:{eye:'M 68 92 L 92 92',brow:'M 70 80 L 90 80',mouth:'M 85 120 Q 100 125 115 120',label:'默认',color:'#00e5ff'},
+  calm:{eye:'M 68 92 L 92 92',brow:'M 70 80 L 90 80',mouth:'M 85 120 Q 100 125 115 120',label:'平静',color:'#00e5ff'},
+  happy:{eye:'M 68 94 Q 80 86 92 94',brow:'M 70 75 L 90 78',mouth:'M 78 117 Q 100 133 122 117',label:'开心',color:'#10b981'},
+  alert:{eye:'M 68 94 Q 80 86 92 94',brow:'M 70 75 L 90 78',mouth:'M 78 117 Q 100 133 122 117',label:'警示',color:'#ec4899'},
+  thinking:{eye:'M 68 92 L 92 92',brow:'M 72 77 L 92 83',mouth:'M 88 122 L 112 122',label:'思考',color:'#a855f7'},
+  focus:{eye:'M 68 92 L 92 92',brow:'M 72 77 L 92 83',mouth:'M 88 122 L 112 122',label:'专注',color:'#a855f7'},
+  approve:{eye:'M 68 94 Q 80 86 92 94',brow:'M 70 75 L 90 78',mouth:'M 78 117 Q 100 133 122 117',label:'赞许',color:'#10b981'},
+  surprised:{eye:'M 72 92 a 8 8 0 1 0 16 0 a 8 8 0 1 0 -16 0',brow:'M 68 71 L 92 71',mouth:'M 94 118 Q 100 132 106 118 Q 100 128 94 118',label:'惊讶',color:'#ec4899'}
+};
+const grid=document.getElementById('expr-grid');
+Object.entries(expressions).forEach(([key,exp],i)=>{
+  const div=document.createElement('div');div.className='expr-item';div.style.animationDelay=(0.05+i*0.06)+'s';
+  div.innerHTML='<svg class="expr-svg" viewBox="0 0 200 200">'+
+    '<circle cx="100" cy="100" r="75" fill="#0d1224" stroke="'+exp.color+'" stroke-width="2" opacity="0.9"/>'+
+    '<line x1="70" y1="80" x2="90" y2="80" stroke="'+exp.color+'" stroke-width="2.5" stroke-linecap="round" opacity="0.8" />'+
+    '<line x1="110" y1="80" x2="130" y2="80" stroke="'+exp.color+'" stroke-width="2.5" stroke-linecap="round" opacity="0.8" />'+
+    '<path d="'+exp.eye+'" fill="none" stroke="'+exp.color+'" stroke-width="3" stroke-linecap="round" transform="translate(0,0)"/>'+
+    '<path d="'+exp.eye+'" fill="none" stroke="'+exp.color+'" stroke-width="3" stroke-linecap="round" transform="translate(40,0)"/>'+
+    '<path d="'+exp.mouth+'" fill="none" stroke="'+exp.color+'" stroke-width="2" stroke-linecap="round"/>'+
+    '</svg><div class="expr-name"><strong>'+key+'</strong> '+exp.label+'</div>';
+  // 应用实际眉/眼位置
+  const paths=div.querySelectorAll('path');
+  paths[0].setAttribute('d',exp.eye);
+  paths[1].setAttribute('d',exp.eye);
+  paths[1].setAttribute('transform','translate(40,0)');
+  paths[2].setAttribute('d',exp.mouth);
+  const lines=div.querySelectorAll('line');
+  lines[0].setAttribute('d',''); // remove default
+  // set brow positions
+  const browParts=exp.brow.match(/M (\d+) (\d+) L (\d+) (\d+)/);
+  if(browParts){lines[0].setAttribute('x1',browParts[1]);lines[0].setAttribute('y1',browParts[2]);lines[0].setAttribute('x2',browParts[3]);lines[0].setAttribute('y2',browParts[4]);lines[1].setAttribute('x1',parseFloat(browParts[3])-20);lines[1].setAttribute('y1',browParts[4]);lines[1].setAttribute('x2',parseFloat(browParts[3])+20);lines[1].setAttribute('y2',browParts[4])}
+  grid.appendChild(div);
+});
+</script>
+</body>
+</html>

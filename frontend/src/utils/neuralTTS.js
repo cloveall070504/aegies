@@ -8,6 +8,7 @@
 // 提交到公开仓库有合规风险，已移除，统一走后端代理。
 
 import useAuthStore from '../store/authStore';
+import { trackTTS } from './telemetry';
 
 var TTS_API_URL = '/api/v1/tts/speak';
 
@@ -24,6 +25,16 @@ var EXPR_PROSODY = {
 };
 
 var DEFAULT_VOICE = 'zh-CN-XiaoxiaoNeural';
+
+/**
+ * 取某表情对应的"基础语速百分比数字"（如 '+30%' → 30），供 speechController
+ * 在用户/状态偏好倍率下重新缩放后透传给后端 TTS。
+ */
+export function baseRatePct(expression) {
+  var p = EXPR_PROSODY[expression || 'neutral'] || EXPR_PROSODY.neutral;
+  var m = (p.rate || '+0%').match(/([+-]?\d+)%/);
+  return m ? parseInt(m[1], 10) : 0;
+}
 
 /**
  * 通过后端 API 获取语音（最稳定）
@@ -52,6 +63,116 @@ function _speakViaBackend(text, voice, rate, pitch, volume, expression) {
  * 返回一个伪 audio 元素的 Promise，接口与上面保持一致（play/pause）
  * 用 Blob URL 的方式不现实，所以直接返回一个可 play 的对象包装
  */
+// 浏览器的中文语音偏好：优先"微软晓晓系/在线神经音"（自然），其次是系统机械音（仅作兜底）。
+// 注意：不同浏览器/平台可用列表不同。极速/Chrome 里常见的中文语音可能是机械感较强的
+// 系统 SAPI（Huihui/Kangkang/Google 普通话），这类音质远不如后端晓晓 → 只当最后兜底，
+// 绝不能因为"有任意中文语音"就把它当主音色（否则听起来会"人机感"重）。
+var PREFERRED_ZH = [
+  'zh-cn-xiaoxiao',   // 微软晓晓（自然女声）
+  'zh-cn-xiayu',      // 微软晓雨
+  'zh-cn-yunxi',      // 微软云希
+  'zh-cn-yunyang',    // 微软云扬
+  'xiaoxiao',
+  'xiayu',
+  'yunxi',
+  'natural',          // Edge/Chrome 的 "Online (Natural)" 语音
+  'online',
+  'neural',
+];
+// 老式系统机械音（人机感强），只允许作为"没有任何自然音"时的最后兜底
+var LEGACY_ZH = ['huihui', 'kangkang', 'yaoyao', 'yayao', 'google 普通话', 'google mandarin', '中文（中国大陆）'];
+var _zhVoiceCache = null;
+var _zhVoiceFallbackCache = null;
+
+// 是否算"自然音"（晓晓级神经语音 / 在线自然语音）—— 主音色候选
+function _isNaturalZhVoice(v) {
+  var n = (v.name || '').toLowerCase();
+  return PREFERRED_ZH.some(function (k) { return n.indexOf(k) >= 0; });
+}
+
+function _pickZhVoice() {
+  if (_zhVoiceCache) return _zhVoiceCache;
+  var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  if (!voices.length) return null;
+
+  // 1) 自然音优先（晓晓/晓雨/在线 natural/neural）
+  var natural = voices.find(function (v) {
+    return v.lang && v.lang.toLowerCase().replace('_', '-').indexOf('zh') === 0 && _isNaturalZhVoice(v);
+  });
+  if (natural) { _zhVoiceCache = natural; return natural; }
+  return null; // 没有自然音 → 不缓存为"主音色"
+}
+
+// 最后兜底音色：任意中文语音（含机械音）。仅当"没有任何自然音"且必须出声时用。
+function _pickZhFallbackVoice() {
+  if (_zhVoiceFallbackCache) return _zhVoiceFallbackCache;
+  var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  if (!voices.length) return null;
+  var zh = voices.find(function (v) {
+    return v.lang && v.lang.toLowerCase().replace('_', '-').indexOf('zh') === 0;
+  }) || voices.find(function (v) {
+    var n = (v.name || '').toLowerCase();
+    return LEGACY_ZH.some(function (k) { return n.indexOf(k) >= 0; });
+  });
+  _zhVoiceFallbackCache = zh || null;
+  return _zhVoiceFallbackCache;
+}
+
+// 某些浏览器 voices 是异步加载的，监听一次 changed 刷新缓存
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = function () {
+    _zhVoiceCache = null;
+    _zhVoiceFallbackCache = null;
+    _pickZhVoice();
+    _pickZhFallbackVoice();
+  };
+}
+
+/**
+ * 是否有"自然级"中文语音（晓晓/在线神经音等）可当主音色。
+ * 只有自然音才值得让数字人全程走浏览器 —— 保证音色好 + 稳定同声 + 即时开口。
+ * 若返回 false（只有机械系统音），上层应优先后端 edge-tts（晓晓，自然音质更好）。
+ */
+export function hasPreferredZhVoice() {
+  return !!_pickZhVoice();
+}
+
+/**
+ * 是否有任意中文语音（含机械音）—— 用于后端也不可用时的最后兜底判断。
+ */
+export function hasAnyZhVoice() {
+  return !!(window.speechSynthesis && window.speechSynthesis.getVoices().length && _pickZhFallbackVoice());
+}
+
+/**
+ * 取最佳可用中文音色：自然音（晓晓/在线 neural）优先，无自然音时退回任意中文（机械音兜底）。
+ * 供所有浏览器朗读路径共用，保证同一时刻只用一个稳定音色。
+ */
+export function pickBestZhVoice() {
+  return _pickZhVoice() || _pickZhFallbackVoice();
+}
+
+/**
+ * 等一次 voiceschanged（某些浏览器 voices 异步加载）。
+ * 返回后 getVoices() 通常已有数据。带 400ms 兜底，避免一直等。
+ */
+export function ensureZhVoicesLoaded() {
+  return new Promise(function (resolve) {
+    if (!window.speechSynthesis) { resolve(); return; }
+    if (window.speechSynthesis.getVoices().length) { resolve(); return; }
+    var done = false;
+    var finish = function () { if (!done) { done = true; resolve(); } };
+    window.speechSynthesis.onvoiceschanged = function () {
+      _zhVoiceCache = null;
+      _zhVoiceFallbackCache = null;
+      _pickZhVoice();
+      _pickZhFallbackVoice();
+      finish();
+    };
+    setTimeout(finish, 400);
+  });
+}
+
 function _speakViaWebSpeech(text, voice, rate, pitch, volume) {
   return new Promise(function(resolve, reject) {
     if (!window.speechSynthesis) {
@@ -74,17 +195,10 @@ function _speakViaWebSpeech(text, voice, rate, pitch, volume) {
     if (volMatch) utter.volume = 1 + parseInt(volMatch[1], 10) / 100;
     utter.volume = Math.max(0, Math.min(1, utter.volume || 1));
 
-    // 找中文语音
-    var voices = window.speechSynthesis.getVoices();
-    var zhVoice = voices.find(function(v) {
-      return v.lang && v.lang.toLowerCase().indexOf('zh') === 0;
-    });
+    // 音色选择：自然音（晓晓/在线 neural）优先；无自然音时才用任意中文（机械音）兜底
+    var zhVoice = pickBestZhVoice();
     if (zhVoice) utter.voice = zhVoice;
 
-    // 为了和神经语音接口兼容，我们不直接播放，而是返回一个"可播放对象"
-    // 但 Web Speech API 只能直接说，所以借用 Audio 接口做包装：
-    // 创建一个极短的静音 audio，然后在它 play 时触发 speechSynthesis.speak
-    // 更简单的做法：直接返回一个 { play, pause, src } 的兼容对象
     var spoken = false;
     var fakeAudio = {
       play: function() {
@@ -103,8 +217,6 @@ function _speakViaWebSpeech(text, voice, rate, pitch, volume) {
       _isWebSpeech: true,
       src: 'webspeech://' + text.slice(0, 20),
     };
-    // 用一个 data: URI 的静音音频做占位，让调用方的 Audio 构造不会报错
-    // 实际上调用方如果检测到 _isWebSpeech 就直接用 play/pause 方法
     resolve('webspeech:' + encodeURIComponent(text));
   });
 }
@@ -129,12 +241,40 @@ export function neuralSpeak(text, expression, opts) {
   var rate = opts.rate || prosody.rate;
   var pitch = opts.pitch || prosody.pitch;
   var volume = opts.volume || prosody.volume;
+  // forceEdge = true 表示"强制晓晓"：后端失败时禁止降级浏览器语音（会变成人机音），
+  // 直接抛错，由上层决定静音跳过。仅当用户明确要求"音色纯正"时使用。
+  var forceEdge = !!opts.forceEdge;
 
-  // 1. 后端 API → 2. Web Speech API（浏览器内置，无需 token，无合规风险）
+  var t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+  if (forceEdge) {
+    // 强制晓晓：只走后端，失败即抛错（不静默降级）
+    return _speakViaBackend(text, voice, rate, pitch, volume, expression)
+      .then(function(url) {
+        trackTTS(true, (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+        return url;
+      })
+      .catch(function(err) {
+        trackTTS(false, (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+        throw err;
+      });
+  }
+
+  // 自动模式：1. 后端 API → 2. Web Speech API（浏览器内置，无需 token，无合规风险）
   return _speakViaBackend(text, voice, rate, pitch, volume, expression)
     .catch(function(err) {
       console.warn('[TTS] backend failed, fallback to Web Speech API:', err.message);
       return _speakViaWebSpeech(text, voice, rate, pitch, volume);
+    })
+    .then(function(url) {
+      // 成功：拿到音频 URL（blob: 或 webspeech: 兜底）
+      trackTTS(true, (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+      return url;
+    })
+    .catch(function(err) {
+      // 失败：后端与浏览器兜底都不可用
+      trackTTS(false, (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+      throw err;
     });
 }
 

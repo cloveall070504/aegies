@@ -74,12 +74,10 @@ export default function PCLayout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* 无障碍：跳过导航，直达主内容 */}
-      <a href="#pc-main-content" className="skip-link">跳到主内容</a>
       <aside className="sidebar" aria-label="主导航">
         <div className="sidebar-logo">
           <span className="sidebar-logo-icon">⚡</span>
-          实战避错系统
+          ChemGuard
         </div>
 
         {/* 当前身份（显眼角色徽标） */}

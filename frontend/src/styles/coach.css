@@ -1,0 +1,382 @@
+/* 数字人教练面板 / 视觉纠错 / 教练笔记 样式 */
+
+/* 教练设置抽屉 / 视觉纠错内容共用滚动容器（作为 cc-panel 的直接 flex 子项） */
+.coach-panel {
+  padding: 12px 14px;
+  overflow-y: auto;
+  color: #e8eef6;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+/* 对话 / 视觉纠错 双标签 */
+.cc-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.cc-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(148, 163, 184, 0.8);
+  font-size: 12.5px;
+  padding: 7px 0 8px;
+  cursor: pointer;
+  transition: color 0.2s;
+  letter-spacing: 0.02em;
+}
+.cc-tab.active {
+  color: #7dd3fc;
+  border-bottom-color: #38bdf8;
+  font-weight: 500;
+}
+
+.cc-coach-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+/* 教练设置抽屉（右上按钮展开） */
+.coach-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.coach-settings-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(241, 245, 249, 0.92);
+  letter-spacing: 0.02em;
+}
+.cc-icon-btn--on {
+  border-color: rgba(125, 211, 252, 0.45);
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+/* 判定气泡下方的"考考我"行 */
+.cc-drill-row {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.cc-chip--drill {
+  border-color: rgba(129, 140, 248, 0.5);
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.12);
+}
+.cc-chip--drill:hover:not(:disabled) {
+  border-color: rgba(129, 140, 248, 0.9);
+  color: #e0e7ff;
+  background: rgba(99, 102, 241, 0.22);
+}
+
+/* 教练提问徽章（socraticFlow 推送的消息） */
+.cc-badge--coach {
+  background: rgba(99, 102, 241, 0.14);
+  color: #a5b4fc;
+  border: 1px solid rgba(129, 140, 248, 0.3);
+}
+
+/* 苏格拉底追问状态条 */
+.cc-soc-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 12px;
+  background: rgba(99, 102, 241, 0.12);
+  border-top: 1px dashed rgba(129, 140, 248, 0.5);
+  border-bottom: 1px dashed rgba(129, 140, 248, 0.3);
+}
+.cc-soc-bar__txt {
+  font-size: 11px;
+  color: #c7d2fe;
+  line-height: 1.5;
+}
+.cc-soc-bar__btns {
+  display: flex;
+  gap: 6px;
+}
+
+/* 视觉纠错独立标签容器 */
+.cc-vision-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.coach-toast {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(90deg, #2563eb, #06b6d4);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, .35);
+}
+
+.coach-sec {
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, .03);
+}
+
+.coach-sec__h {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #9fd0ff;
+  letter-spacing: .5px;
+}
+
+.coach-empty,
+.coach-text {
+  font-size: 12px;
+  color: #9fb0c3;
+  line-height: 1.6;
+}
+
+.coach-remind {
+  background: rgba(250, 204, 21, .12);
+  border-left: 3px solid #facc15;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #ffe9a8;
+}
+
+.coach-tags {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.coach-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, .15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, .3);
+}
+
+.coach-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.coach-badge {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .15);
+}
+
+.coach-badge.owned {
+  background: rgba(34, 197, 94, .18);
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, .4);
+}
+
+.coach-badge.locked {
+  opacity: .45;
+  filter: grayscale(1);
+}
+
+.coach-input,
+.coach-row select {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 8px;
+  color: #e8eef6;
+  padding: 7px 10px;
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.coach-row {
+  display: flex;
+  gap: 10px;
+}
+
+.coach-row label {
+  flex: 1;
+  font-size: 11px;
+  color: #9fb0c3;
+  display: flex;
+  flex-direction: column;
+}
+
+.coach-btn {
+  margin-top: 6px;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: filter .15s;
+}
+
+.coach-btn:hover { filter: brightness(1.1); }
+.coach-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.coach-card {
+  margin-top: 8px;
+  background: rgba(15, 23, 42, .55);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.coach-card__mode {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, .25);
+  color: #c7d2fe;
+  margin-bottom: 4px;
+}
+
+.coach-hint { margin: 4px 0; }
+.coach-advice { color: #fde68a; margin-top: 4px; }
+
+.coach-switch {
+  font-size: 12px;
+  color: #cbd5e1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 教练笔记气泡（对话流中的 role=coach） */
+.cc-msg--coach .cc-bubble {
+  background: rgba(99, 102, 241, .14);
+  border: 1px dashed rgba(129, 140, 248, .5);
+}
+.cc-coach-label {
+  font-size: 11px;
+  color: #c7d2fe;
+  margin-bottom: 2px;
+}
+
+/* 摄像头视觉纠错 */
+.vc {
+  margin-top: 6px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(0, 0, 0, .2);
+}
+.vc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.vc-title { font-size: 13px; color: #a5f3fc; }
+.vc-note { font-size: 11px; color: #9fb0c3; line-height: 1.5; margin: 6px 0; }
+.vc-stage {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.vc-video {
+  width: 160px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #000;
+}
+.vc-snapshot {
+  width: 160px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, .2);
+}
+.vc-capture {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, .6);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.vc-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 8px;
+  color: #e8eef6;
+  padding: 6px 9px;
+  font-size: 12px;
+  margin: 6px 0 0;
+  resize: vertical;
+  font-family: inherit;
+}
+.vc-actions { display: flex; gap: 8px; margin-top: 6px; }
+.vc-btn {
+  background: linear-gradient(90deg, #06b6d4, #3b82f6);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.vc-btn--ghost { background: rgba(255, 255, 255, .1); }
+.vc-btn:disabled { opacity: .5; cursor: not-allowed; }
+.vc-error { color: #fca5a5; font-size: 12px; margin-top: 6px; }
+
+.vc-result {
+  margin-top: 8px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.vc-result--warn {
+  background: rgba(239, 68, 68, .15);
+  border: 1px solid rgba(239, 68, 68, .4);
+}
+.vc-result--safe {
+  background: rgba(34, 197, 94, .13);
+  border: 1px solid rgba(34, 197, 94, .35);
+}
+.vc-result__badge { font-weight: 600; margin-bottom: 4px; }
+.vc-result__badge--ok { color: #bbf7d0; }
+.vc-result__tip { line-height: 1.6; }
+.vc-result__src { font-size: 11px; color: #cbd5e1; margin-top: 4px; }

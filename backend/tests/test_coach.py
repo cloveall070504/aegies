@@ -67,6 +67,12 @@ def test_socratic_explain_when_wrong_low():
     assert out["mode"] == "explain"
 
 
+def test_socratic_deepen_when_answer_shows_consequence():
+    """第二层（deepen）反问"反过来会怎样"，学生答出后果（暴沸飞溅）应判理解，而非误判答错。"""
+    out = coach.socratic_next("我把水倒进浓硫酸里", "会暴沸飞溅，溅到人身上会灼伤", "high")
+    assert out["mode"] == "deepen"
+
+
 # ===================== 项2：分层提示 =====================
 def test_progressive_hints_all_and_level():
     out = coach.progressive_hints("稀释浓硫酸时把水倒进浓硫酸")

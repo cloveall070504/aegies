@@ -10,9 +10,71 @@
  * consequence/correction/risk_score，本函数只做拼装，不改写结论。
  */
 import { companionChat, companionChatStream } from '../api/companion'
+import { coachAttribute, coachAward } from '../api/coach'
 import useCompanionChatStore from '../store/companionChatStore'
 import useDigitalHumanStore from '../store/digitalHumanStore'
 import { isCompanionStageActive, detectConfusionInText } from './companionEvents'
+import { handleSocraticAnswer, autoSocraticForDanger } from './socraticFlow'
+import { stripTics, stripMarkdownMarks } from './cleanTalk'
+
+// 每个会话仅记一次"实验推演"用于解锁徽章，避免每条操作消息都 +1
+const _awardedSessions = new Set()
+// 同一会话内同一句操作文本只发一次"教练笔记"，避免重复判定/重复触发时刷屏
+const _notedOperations = new Set()
+
+function _noteKey(sid, text) {
+  return `${sid}::${(text || '').slice(0, 60)}`
+}
+
+/**
+ * 操作判定后触发的教练动作（项3/项10 自动侧）。
+ *
+ * 诚实性护栏：
+ *   - 只有 high/medium（确实出错/有风险）才写"错因归因"到长期记忆并显示教练笔记，
+ *     low/none（安全/基本可行）绝不归类错因、不显示"错因"笔记（与"low 不列风险点"一致）；
+ *   - 高危（high）自动开一轮苏格拉底追问（项1 融入对话，见 socraticFlow）。
+ */
+async function _coachOnOperation(text, level, correction = '') {
+  const risky = level === 'high' || level === 'medium'
+  const sid = useCompanionChatStore.getState().sessionId
+  const noteDedup = risky && _notedOperations.has(_noteKey(sid, text))
+  if (risky && !noteDedup) {
+    _notedOperations.add(_noteKey(sid, text))
+    // 笔记文案：引用学生具体操作（截短），否则连续几次高危操作会生成一模一样的句子，
+    // 看起来像"同一条刷了三遍"；中文等级不暴露 high/medium 内部键；正文不带"教练笔记："前缀。
+    const LEVEL_CN = { high: '高危', medium: '中危' }
+    const brief = (text || '').trim().slice(0, 18)
+    let note = ''
+    try {
+      const attr = await coachAttribute({ operationText: text, studentAnswer: '' })
+      const et = attr?.error_type || '操作习惯'
+      const quoted = brief ? `「${brief}」这步` : '这一步'
+      note = level === 'high'
+        ? `${quoted}属于${LEVEL_CN[level] || level}操作，错因倾向「${et}」。我下面出个题帮你巩固。`
+        : `${quoted}有${LEVEL_CN[level] || level}风险，错因倾向「${et}」。已记入你的薄弱点，同类操作下次留意。`
+    } catch (_) {
+      return
+    }
+    useCompanionChatStore.getState().addMessage('coach', note, { coachNote: true, kind: 'note', level })
+  }
+
+  // 按会话记一次实验推演（无论安全与否都算完成一次推演），命中阈值解锁徽章
+  if (!_awardedSessions.has(sid)) {
+    _awardedSessions.add(sid)
+    try {
+      const d = await coachAward('experiment_done')
+      if (d?.newly_unlocked?.length) {
+        const names = d.newly_unlocked.map((x) => x.name).join('、')
+        useCompanionChatStore.getState().addMessage('coach', `解锁了新徽章：${names}`, { coachNote: true, kind: 'badge' })
+      }
+    } catch (_) { /* 解锁失败不影响主流程 */ }
+  }
+
+  // 高危 → 自动开一轮苏格拉底追问（同一会话同一操作只问一次，可被跳过）
+  if (level === 'high') {
+    autoSocraticForDanger(text, { level, correction })
+  }
+}
 
 const OP_PREFIX = {
   high: '危险，这一步不能这么做。后果：',
@@ -25,6 +87,16 @@ const OP_EXPR = { high: 'alert', medium: 'thinking', low: 'calm', none: 'approve
 export async function askCompanion(text, { module = '', sceneCode = '', sceneCtx = '' } = {}) {
   const t = (text || '').trim()
   if (!t) return null
+  // 用户发出新输入 → 立即停掉上一段朗读（不要等新回答返回才被 stopSpeech 顶掉）
+  useDigitalHumanStore.getState().hush()
+  // 苏格拉底追问激活时：输入优先当作"作答"处理（答对深挖/答错引导/提示/结束）
+  if (useCompanionChatStore.getState().socratic) {
+    const consumed = await handleSocraticAnswer(t)
+    if (consumed) {
+      useCompanionChatStore.getState().loadConversations()
+      return { _socratic: true }
+    }
+  }
   const cStore = useCompanionChatStore.getState()
   cStore.addMessage('user', t)
   cStore.setBusy(true)
@@ -46,7 +118,8 @@ export async function askCompanion(text, { module = '', sceneCode = '', sceneCtx
       }
       if (res.risk_score && level !== 'none') display += `（风险评分 ${res.risk_score}）`
     } else {
-      display = res?.reply || '我刚才没想好怎么说，再问一次？'
+      // LLM 生成的回答：去口头禅（"哎呀哎呀"等）再展示/朗读
+      display = stripMarkdownMarks(stripTics(res?.reply)) || '我刚才没想好怎么说，再问一次？'
       expression = intent === 'qa' ? 'focus' : 'calm'
     }
 
@@ -55,12 +128,18 @@ export async function askCompanion(text, { module = '', sceneCode = '', sceneCtx
       engine: res?.engine,
       level: res?.level,
       sources: res?.sources,
+      opText: intent === 'operation' ? t : '',
+      correction: intent === 'operation' ? (res?.correction || '') : '',
     })
 
     // 数字人在台上才朗读（独立路由页无舞台，只留气泡记录）
     if (isCompanionStageActive()) {
       const ms = Math.min(14000, 3500 + display.length * 180)
       useDigitalHumanStore.getState().speak(display, { expression, ms })
+    }
+    // 操作判定后：写长期记忆 + 解锁徽章 + 教练笔记 + 高危自动苏格拉底（自动侧）
+    if (intent === 'operation') {
+      _coachOnOperation(t, res.level || 'none', res?.correction || '')
     }
     // 刷新会话列表（可能有新会话 / 标题更新）
     useCompanionChatStore.getState().loadConversations()
@@ -81,6 +160,16 @@ export async function askCompanion(text, { module = '', sceneCode = '', sceneCtx
 export async function askCompanionStream(text, { module = '', sceneCode = '', sceneCtx = '' } = {}) {
   const t = (text || '').trim()
   if (!t) return null
+  // 用户发出新输入 → 立即停掉上一段朗读（不要等新回答返回才被 stopSpeech 顶掉）
+  useDigitalHumanStore.getState().hush()
+  // 苏格拉底追问激活时：输入优先当作"作答"处理
+  if (useCompanionChatStore.getState().socratic) {
+    const consumed = await handleSocraticAnswer(t)
+    if (consumed) {
+      useCompanionChatStore.getState().loadConversations()
+      return { _socratic: true }
+    }
+  }
   const cStore = useCompanionChatStore.getState()
   cStore.addMessage('user', t)
   cStore.setBusy(true)
@@ -131,6 +220,8 @@ export async function askCompanionStream(text, { module = '', sceneCode = '', sc
         display = assembled
       }
     } else {
+      // LLM 生成的回答：去口头禅（"哎呀哎呀"等）再展示/朗读
+      display = stripMarkdownMarks(stripTics(finalText)) || finalText
       expression = intent === 'qa' ? 'focus' : 'calm'
     }
 
@@ -141,6 +232,15 @@ export async function askCompanionStream(text, { module = '', sceneCode = '', sc
     }
     // 统一结束流式：更新最后一条消息的 text（拼装后的）和 meta
     cStore.finishStreaming(finalMeta, display)
+    // 操作判定后：写长期记忆 + 解锁徽章 + 教练笔记 + 高危自动苏格拉底
+    if (intent === 'operation') {
+      // 让判定气泡携带原操作文本与正确做法，供"考考我"复用
+      const lastMsg = useCompanionChatStore.getState().messages.slice(-1)[0]
+      if (lastMsg && lastMsg.role === 'ai') {
+        cStore.updateLastMeta({ opText: t, correction: finalMeta.correction || '' })
+      }
+      _coachOnOperation(t, finalMeta.level || 'none', finalMeta.correction || '')
+    }
     // 刷新会话列表
     useCompanionChatStore.getState().loadConversations()
     return finalMeta

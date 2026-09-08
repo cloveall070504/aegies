@@ -11,11 +11,15 @@ import CompanionChat from '../../components/CompanionChat'
 import { setCompanionStageActive, notifyStudyFatigue, resetConfusionState } from '../../utils/companionEvents'
 import '../../styles/nexus.css'
 
-const HEX_SIZE = 22
+const HEX_SIZE = 32
 const HEX_W = Math.sqrt(3) * HEX_SIZE
 const HEX_H = 2 * HEX_SIZE
 const ROW_SP = HEX_H * 0.75
 const COL_SP = HEX_W
+
+// —— 涟漪节奏旋钮（用户可反馈再调，与 RippleTransition.jsx 保持一致）——
+const WAVE_LIFE_FRAMES = 110 // 单波扩散耗时（帧，60fps≈1.83s/波）
+const NEXT_WAVE_AT = 0.8 // 上一波扩到全屏距离的多少比例时发出下一波
 
 const BG_COLORS = [
   { r: 0, g: 229, b: 255 },
@@ -93,7 +97,6 @@ export default function Nexus() {
     let raf = 0
     let cells = []
     let waves = []
-    let waveTimer = 0
     let waveIdx = 0
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -137,10 +140,12 @@ export default function Nexus() {
       return { cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2 }
     }
 
-    const spawnWave = () => {
+    const spawnWave = (maxDist) => {
+      // 速度自适应屏宽：单波 ~WAVE_LIFE_FRAMES 帧（≈1.83s）从中心扩到屏幕最远角
+      const baseSpeed = Math.max(2.5, (maxDist - 80) / WAVE_LIFE_FRAMES)
       waves.push({
         radius: 80,
-        speed: 1.5 + Math.random() * 0.5,
+        speed: baseSpeed * (0.9 + Math.random() * 0.2),
         band: 55,
         color: BG_COLORS[waveIdx % 3],
       })
@@ -157,10 +162,11 @@ export default function Nexus() {
         Math.max(cx, w - cx) ** 2 + Math.max(cy, h - cy) ** 2
       ) + 100
 
-      waveTimer++
-      if (waveTimer >= 180) {
-        waveTimer = 0
-        spawnWave()
+      // 发波节奏：不是"每 180 帧定时硬塞"，而是"上一波扩到全屏距离 NEXT_WAVE_AT 时再出下一波"——
+      // 首尾相接、一波接一波，视觉从容不急促。单波速度已按屏宽自适应（~1.83s/波）。
+      const lastWave = waves[waves.length - 1]
+      if (!lastWave || lastWave.radius >= maxDist * NEXT_WAVE_AT) {
+        spawnWave(maxDist)
       }
 
       for (let i = waves.length - 1; i >= 0; i--) {
@@ -206,8 +212,7 @@ export default function Nexus() {
       raf = requestAnimationFrame(animate)
     }
 
-    spawnWave()
-    raf = requestAnimationFrame(animate)
+    raf = requestAnimationFrame(animate) // 第一帧里 !lastWave 会触发 spawnWave(maxDist)
 
     return () => {
       cancelAnimationFrame(raf)

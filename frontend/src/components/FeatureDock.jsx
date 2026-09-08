@@ -11,13 +11,13 @@ import TrainingOverview from '../pages/PC/TrainingOverview'
 import Docs from '../pages/PC/Docs'
 
 const FEATURES = [
-  { key: 'sandbox', label: '避错沙盘', icon: '🧪', hint: '推演操作后果', Comp: Sandbox, say: '打开避错沙盘。你可以先操作，我来告诉你后果和正确做法。' },
-  { key: 'training', label: '学习中心', icon: '🎓', hint: '分步骤模拟训练', Comp: TrainingOverview, say: '这是你的学习中心，按场景一步步练，我会盯着每一步。' },
-  { key: 'cases', label: '案例库', icon: '📚', hint: '真实事故复盘', Comp: Cases, say: '看看别人踩过的坑，比自己踩一次划算得多。' },
-  { key: 'assignments', label: '我的作业', icon: '📋', hint: '待完成与批改', Comp: Assignments, say: '这是你的作业，做完的我帮你看看哪里还能更稳。' },
-  { key: 'docs', label: '文档管理', icon: '📄', hint: '规程与资料', Comp: Docs, say: '规程文档都在这儿，需要我解读哪一段随时说。' },
-  { key: 'profile', label: '个人画像', icon: '👤', hint: '能力雷达与薄弱项', Comp: Profile, say: '这是你的能力画像，薄弱项我们一起补。' },
-  { key: 'dashboard', label: '我的主页', icon: '🏠', hint: '总览与趋势', Comp: Dashboard, say: '回到主页，这里有你的整体情况。' },
+  { key: 'sandbox', label: '避错沙盘', hint: '推演操作后果', Comp: Sandbox, say: '打开避错沙盘。你可以先操作，我来告诉你后果和正确做法。' },
+  { key: 'training', label: '学习中心', hint: '分步骤模拟训练', Comp: TrainingOverview, say: '这是你的学习中心，按场景一步步练，我会盯着每一步。' },
+  { key: 'cases', label: '案例库', hint: '真实事故复盘', Comp: Cases, say: '看看别人踩过的坑，比自己踩一次划算得多。' },
+  { key: 'assignments', label: '我的作业', hint: '待完成与批改', Comp: Assignments, say: '这是你的作业，做完的我帮你看看哪里还能更稳。' },
+  { key: 'docs', label: '文档管理', hint: '规程与资料', Comp: Docs, say: '规程文档都在这儿，需要我解读哪一段随时说。' },
+  { key: 'profile', label: '个人画像', hint: '能力雷达与薄弱项', Comp: Profile, say: '这是你的能力画像，薄弱项我们一起补。' },
+  { key: 'dashboard', label: '我的主页', hint: '总览与趋势', Comp: Dashboard, say: '回到主页，这里有你的整体情况。' },
 ]
 
 export default function FeatureDock({ visible = false, onOpenChange }) {
@@ -55,7 +55,6 @@ export default function FeatureDock({ visible = false, onOpenChange }) {
               style={{ animationDelay: `${i * 90}ms` }}
               onClick={() => onPick(f)}
             >
-              <span className="dock__icon">{f.icon}</span>
               <span className="dock__meta">
                 <span className="dock__label">{f.label}</span>
                 <span className="dock__hint">{f.hint}</span>
@@ -71,10 +70,7 @@ export default function FeatureDock({ visible = false, onOpenChange }) {
         {open && (
           <>
             <div className="drawer__head">
-              <span className="drawer__title">
-                <span className="drawer__icon">{open.icon}</span>
-                {open.label}
-              </span>
+              <span className="drawer__title">{open.label}</span>
               <button type="button" className="drawer__close" onClick={closePanel}>
                 收起
               </button>

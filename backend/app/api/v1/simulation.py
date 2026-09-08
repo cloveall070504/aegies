@@ -40,12 +40,11 @@ async def simulate(
 
     # 落库推演记录（与 /scenario/infer 一致），供学生反馈闭环（A2）使用
     if result.get("level") != "none":
-        scene_code = (req.scene_id or "").strip()
         rec = OperationRecord(
             user_id=user.id,
             behavior=step,
             scene_type=req.scene_id or "experiment",
-            scene_code=scene_code,  # 与 /scenario/infer 一致：写入具体场景代码，供驾驶舱/画像按场景统计
+            scene_code="",
             risk_score=result["risk_score"],
             level=result["level"],
             consequence=result["consequence"],
@@ -57,20 +56,6 @@ async def simulate(
             score_breakdown=json.dumps(result.get("score_breakdown", []), ensure_ascii=False),
         )
         db.add(rec)
-        # 沙盘推演同时计入该场景的培训记录（学习练习次数），让培训总览/报告同步更新
-        if scene_code:
-            from app.models.training import TrainingRecord
-
-            tr = (
-                db.query(TrainingRecord)
-                .filter(TrainingRecord.user_id == user.id, TrainingRecord.scene_code == scene_code)
-                .order_by(TrainingRecord.id.desc())
-                .first()
-            )
-            if tr is None:
-                tr = TrainingRecord(user_id=user.id, scene_code=scene_code, stage="learning")
-                db.add(tr)
-            tr.sim_count = (tr.sim_count or 0) + 1
         db.commit()
         db.refresh(rec)
         result["record_id"] = rec.id

@@ -1,20 +1,19 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { playSpeech, stopSpeech } from '../utils/speechController'
 
 /**
  * 数字人状态机（全局，学生端所有页面共享）。
  *
- * caption   当前字幕（数字人正在"说"的内容）
- * speaking  是否在说话（驱动光形呼吸加速 / 唇形）
- * expression 神态：calm 平静 / alert 警示 / approve 赞许 / focus 专注
- * muted     是否静音（静音时只显示字幕不播语音）
- * liveConnected LiveTalking 实时画面是否已接入（未接入时显示光形占位）
+ * caption     当前字幕（数字人正在"说"的内容）
+ * speaking    是否在说话（驱动光形呼吸加速 / 唇形）
+ * expression  神态：calm 平静 / alert 警示 / approve 赞许 / focus 专注 ...
+ * muted       是否静音（静音时只显示字幕不播语音）
+ * liveConnected 预留：LiveTalking 实时画面（当前未接入，数字人以 SVG 光形 + TTS 呈现）
  *
- * 各功能模块拿到结果后调用 speak()，让数字人"开口"，实现功能与数字人的联动。
- * muted 持久化到 localStorage，用户刷新后仍保持静音偏好。
+ * 语音统一由 speechController 单路播放（store 只负责状态与字幕），
+ * 避免多组件各自订阅 caption 造成"唱双簧"重复朗读。
  */
-let clearTimer = null
-
 export const useDigitalHumanStore = create(
   persist(
     (set, get) => ({
@@ -24,18 +23,16 @@ export const useDigitalHumanStore = create(
       muted: false,
       liveConnected: false,
 
-      /** 让数字人说一句话；ms 兜底自动收声（实际由前端 TTS onend 控制） */
-      speak: (text, { expression = 'calm', ms = 5200 } = {}) => {
+      /** 让数字人说一句话：设置字幕/神态并触发单路 TTS 播放 */
+      speak: (text, { expression = 'calm' } = {}) => {
         if (!text) return
-        if (clearTimer) clearTimeout(clearTimer)
         set({ caption: text, speaking: true, expression })
-        // 兜底：万一 TTS 失败/浏览器没声，ms+3000 后强制收声
-        clearTimer = setTimeout(() => set({ speaking: false, caption: '' }), ms + 3000)
+        playSpeech(text, expression)
       },
 
-      /** 立即收声（切换模块时用） */
+      /** 立即收声（切换模块 / 用户打断时用） */
       hush: () => {
-        if (clearTimer) clearTimeout(clearTimer)
+        stopSpeech()
         set({ caption: '', speaking: false })
       },
 
@@ -43,11 +40,11 @@ export const useDigitalHumanStore = create(
       toggleMuted: () => {
         const next = !get().muted
         set({ muted: next })
-        // 切静音时立刻停掉当前播放
+        // 切到静音时立刻停掉当前播放
         if (next) {
-          if (clearTimer) clearTimeout(clearTimer)
+          stopSpeech()
           if (typeof window !== 'undefined' && window.speechSynthesis) {
-            try { window.speechSynthesis.cancel() } catch {}
+            try { window.speechSynthesis.cancel() } catch (_) {}
           }
         }
         return next

@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import useDigitalHumanStore from '../store/digitalHumanStore'
 import useCompanionChatStore from '../store/companionChatStore'
 import CompanionChat from './CompanionChat'
 import { setCompanionStageActive } from '../utils/companionEvents'
-import { neuralSpeak, splitSentences } from '../utils/neuralTTS'
+import { stopSpeech, setVoiceUnlocked } from '../utils/speechController'
 import '../styles/floating-companion.css'
 
 /**
@@ -17,7 +17,7 @@ import '../styles/floating-companion.css'
  *  1. 挂载时激活 stageActive → 所有 notify* 恢复工作
  *  2. 右下角悬浮球，点击展开对话面板
  *  3. 收起状态下数字人说话时弹气泡提示
- *  4. 自带 TTS 播放（与 DigitalHumanStage 逻辑一致）
+ *  4. 语音由 speechController 单路播放（避免与 DigitalHumanStage 唱双簧）
  *  5. 静音开关（只听字幕 / 听语音）
  *  6. 根据当前路由自动设置模块上下文
  */
@@ -57,11 +57,8 @@ export default function FloatingCompanion() {
   const { caption, speaking, expression, muted, toggleMuted, hush } = useDigitalHumanStore()
   const { messages } = useCompanionChatStore()
   const [open, setOpen] = useState(false)
-  const [unlocked, setUnlocked] = useState(false)
   const [showToast, setShowToast] = useState(false)
-  const audioRef = useRef(null)
   const toastTimerRef = useRef(null)
-  const segmentCancelRef = useRef(false)
 
   // 1) 激活数字人舞台：让所有 notify* 恢复工作
   useEffect(() => {
@@ -69,23 +66,19 @@ export default function FloatingCompanion() {
     return () => setCompanionStageActive(false)
   }, [])
 
-  // 1.5) 全局静音变化时，立刻停止当前播放（两边同步）
+  // 1.5) 全局静音变化时，立刻停止当前播放（store 已处理，这里兜底）
   useEffect(() => {
     if (!muted) return
-    segmentCancelRef.current = true
-    if (audioRef.current) {
-      try { audioRef.current.pause() } catch {}
-      audioRef.current = null
-    }
-    if (window.speechSynthesis) {
-      try { window.speechSynthesis.cancel() } catch {}
+    stopSpeech()
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try { window.speechSynthesis.cancel() } catch (_) {}
     }
   }, [muted])
 
   // 2) 浏览器自动播放限制：首次交互后解锁
   useEffect(() => {
     const unlock = () => {
-      setUnlocked(true)
+      setVoiceUnlocked(true)
       window.removeEventListener('pointerdown', unlock)
       window.removeEventListener('keydown', unlock)
     }
@@ -97,104 +90,13 @@ export default function FloatingCompanion() {
     }
   }, [])
 
-  // 3) 字幕变化 → 播放 TTS + 弹气泡（收起状态下）
-  const currentModule = moduleFromPath(location.pathname)
-
-  const playTTS = useCallback(async (text, expr) => {
-    if (muted) return
-    if (!unlocked) return
-    if (!text) return
-
-    // 停止之前的播放
-    segmentCancelRef.current = true
-    if (audioRef.current) {
-      try { audioRef.current.pause() } catch {}
-      audioRef.current = null
-    }
-
-    const segments = splitSentences(text)
-    if (!segments.length) return
-
-    segmentCancelRef.current = false
-    useDigitalHumanStore.getState().setSpeaking(true)
-
-    async function playSegment(i) {
-      if (segmentCancelRef.current) return
-      if (i >= segments.length) {
-        useDigitalHumanStore.getState().setSpeaking(false)
-        return
-      }
-      try {
-        const url = await neuralSpeak(segments[i].text, expr || 'calm')
-        if (segmentCancelRef.current) {
-          if (typeof url === 'string' && url.startsWith('blob:')) URL.revokeObjectURL(url)
-          return
-        }
-
-        // Web Speech API 兜底（后端 + WebSocket 都失败时）
-        if (typeof url === 'string' && url.startsWith('webspeech:')) {
-          const utter = new SpeechSynthesisUtterance(segments[i].text)
-          utter.lang = 'zh-CN'
-          utter.rate = 1.1
-          audioRef.current = {
-            _webSpeech: true,
-            _utter: utter,
-            play() {
-              window.speechSynthesis.speak(utter)
-              return Promise.resolve()
-            },
-            pause() {
-              window.speechSynthesis.cancel()
-            },
-            set onended(cb) { utter.onend = cb },
-            set onerror(cb) { utter.onerror = cb },
-          }
-          utter.onend = () => {
-            if (segmentCancelRef.current) return
-            setTimeout(() => playSegment(i + 1), segments[i].pause)
-          }
-          utter.onerror = () => {
-            if (segmentCancelRef.current) return
-            setTimeout(() => playSegment(i + 1), 500)
-          }
-          window.speechSynthesis.speak(utter)
-          return
-        }
-
-        const audio = new Audio(url)
-        audioRef.current = audio
-        audio.onended = () => {
-          URL.revokeObjectURL(url)
-          if (segmentCancelRef.current) return
-          setTimeout(() => playSegment(i + 1), segments[i].pause)
-        }
-        audio.onerror = () => {
-          if (segmentCancelRef.current) return
-          setTimeout(() => playSegment(i + 1), 500)
-        }
-        audio.play()
-      } catch {
-        if (segmentCancelRef.current) return
-        setTimeout(() => playSegment(i + 1), 500)
-      }
-    }
-
-    playSegment(0)
-  }, [muted, unlocked])
-
+  // 3) 字幕变化 → 仅控制收起态气泡提示；语音由 speechController 单路播放（避免唱双簧）
   useEffect(() => {
     if (!caption) {
       setShowToast(false)
-      // 字幕清空 → 立刻停止播放（hush / 切换页面等场景）
-      segmentCancelRef.current = true
-      if (audioRef.current) {
-        try { audioRef.current.pause() } catch {}
-        audioRef.current = null
-      }
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
       return
     }
-
-    // 收起状态下弹气泡
     if (!open) {
       setShowToast(true)
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
@@ -202,21 +104,10 @@ export default function FloatingCompanion() {
       const dur = Math.min(8000, 2500 + caption.length * 120)
       toastTimerRef.current = setTimeout(() => setShowToast(false), dur)
     }
-
-    // 播放语音
-    playTTS(caption, expression)
-
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-      // 新字幕来之前停掉上一条
-      segmentCancelRef.current = true
-      if (audioRef.current) {
-        try { audioRef.current.pause() } catch {}
-        audioRef.current = null
-      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caption])
+  }, [caption, open])
 
   // 展开面板时隐藏气泡
   useEffect(() => {
@@ -241,9 +132,7 @@ export default function FloatingCompanion() {
     toggleMuted()
     if (next) {
       // 立刻静音：停掉当前播放
-      segmentCancelRef.current = true
-      if (audioRef.current) { try { audioRef.current.pause() } catch {} }
-      if (window.speechSynthesis) window.speechSynthesis.cancel()
+      stopSpeech()
       hush()
     }
   }
@@ -267,7 +156,7 @@ export default function FloatingCompanion() {
       {open && (
         <div className="fc-panel">
           <CompanionChat
-            module={currentModule}
+            module={moduleFromPath(location.pathname)}
             open={open}
             onOpenChange={setOpen}
             showFab={false}

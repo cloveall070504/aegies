@@ -13,17 +13,17 @@ from app.utils.response import ok
 
 router = APIRouter(prefix="/dashboard", tags=["驾驶舱"])
 
-# 内置化学实验场景代码（experiment/student 家族过滤时纳入统计）
-_CHEM_SCENE_CODES = {"chem_lab", "chem_titration", "chem_gas_prep", "chem_distillation", "chem_solution_prep"}
-
 
 def _scene_match(record_scene: str, filter_scene: str) -> bool:
-    """场景匹配：experiment/student 视为实验家族，覆盖全部化学内置场景。"""
+    """场景匹配：experiment 实验场景过滤。"""
     if not filter_scene or filter_scene == "general":
         return True
-    if filter_scene in ("experiment", "student"):
-        return record_scene in _CHEM_SCENE_CODES or record_scene in ("experiment", "student")
-    return record_scene == filter_scene
+    aliases = {
+        "experiment": {"experiment", "student"},
+        "student": {"experiment", "student"},
+    }
+    target = aliases.get(filter_scene, {filter_scene})
+    return record_scene in target
 
 
 @router.get("/summary")

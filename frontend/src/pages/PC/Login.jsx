@@ -49,8 +49,8 @@ export default function Login() {
         <div className="login-aside__brand">
           <span className="login-aside__logo">⚡</span>
           <div>
-            <h1 className="login-aside__name">实战避错系统</h1>
-            <div className="login-aside__sub">REVERSE-RAG · DUAL-AGENT GUARD</div>
+            <h1 className="login-aside__name">ChemGuard</h1>
+            <div className="login-aside__sub">化学实验安全守护 · REVERSE-RAG · DUAL-AGENT GUARD</div>
           </div>
         </div>
 
@@ -68,7 +68,7 @@ export default function Login() {
           <div className="login-aside__stat"><span className="login-aside__dot" /> 终端：SECURE CHANNEL · TLS 1.3</div>
         </div>
 
-        <div className="login-aside__foot">© 实战避错系统 · 化学实验安全培训控制台 v2.0</div>
+        <div className="login-aside__foot">© ChemGuard · 化学实验安全培训控制台 v2.0</div>
       </aside>
 
       <main className="login-main">

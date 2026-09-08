@@ -76,6 +76,9 @@ export default function VoiceInput({ module = '' }) {
   }
 
   const start = async () => {
+    // 打断式交互：点下麦克风立即停掉数字人正在说的话（注释说要做，原来只在上传时才 hush）
+    hush()
+    if (window.speechSynthesis) window.speechSynthesis.cancel()
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream

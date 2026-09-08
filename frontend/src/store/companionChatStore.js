@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { companionListConversations, companionGetMessages, companionQuickQuestions } from '../api/companion'
+import { stripTics } from '../utils/cleanTalk'
 
 /**
  * 数字人对话记录（全局，学生端所有页面共享）。
@@ -23,10 +24,42 @@ export const useCompanionChatStore = create((set, get) => ({
   quickQuestions: [], // 当前模块的快捷问法
   quickModule: '', // 快捷问法对应的模块名
 
+  /**
+   * 苏格拉底追问会话（项1 融入对话）。
+   * null = 无进行中追问；否则 { opText, topic, round, hintLevel }：
+   *   opText    被追问的操作文本（规则引擎已判定）
+   *   topic     风险主题（dilution/heating_tube…）
+   *   round     已进行的问答轮次（1=首问已发出）
+   *   hintLevel 已给的渐进提示级数（0~3，项2）
+   */
+  socratic: null,
+
   addMessage: (role, text, meta = {}) => {
+    // 防重复兜底：coach 系统消息（教练笔记/提醒/徽章）若与上一条内容完全相同 → 跳过，
+    // 避免同一内容在对话里连续刷多遍（用户反馈"教练笔记连续出现三次"）。
+    // 注意只折叠 role='coach'：user/ai 是对话主体，用户连续发两句相同话、AI 两次回答撞车都应保留。
+    if (role === 'coach') {
+      const msgs = get().messages
+      const last = msgs[msgs.length - 1]
+      if (last && last.role === 'coach' && last.text === text) {
+        return last.id
+      }
+    }
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     set((s) => ({ messages: [...s.messages, { id, role, text, meta }] }))
     return id
+  },
+
+  /** 更新最后一条消息的 meta（追加合并） */
+  updateLastMeta: (patch) => {
+    set((s) => {
+      const msgs = [...s.messages]
+      const last = msgs[msgs.length - 1]
+      if (last) {
+        msgs[msgs.length - 1] = { ...last, meta: { ...(last.meta || {}), ...patch } }
+      }
+      return { messages: msgs }
+    })
   },
 
   /** 流式：追加到最后一条 AI 消息的 text 末尾 */
@@ -73,17 +106,38 @@ export const useCompanionChatStore = create((set, get) => ({
 
   setStreaming: (streaming) => set({ streaming }),
 
+  /** 开启一轮苏格拉底追问（opText=被追问的操作，round=1 表示首问已发出） */
+  beginSocratic: (opText, topic = '', opts = {}) =>
+    set({
+      socratic: {
+        opText,
+        topic,
+        round: 1,
+        hintLevel: 0,
+        level: opts.level || '',
+        correction: opts.correction || '',
+        revealed: false,
+      },
+    }),
+
+  /** 推进追问：记录已给到的提示级数 / 问答轮次 */
+  advanceSocratic: (patch) =>
+    set((s) => (s.socratic ? { socratic: { ...s.socratic, ...patch } } : {})),
+
+  /** 结束本轮追问 */
+  endSocratic: () => set({ socratic: null }),
+
   /** 清空气泡流并换新会话（上下文从头开始） */
   reset: () => {
     const newId = `dh-${Date.now().toString(36)}`
-    set({ messages: [], sessionId: newId, streaming: false, busy: false })
+    set({ messages: [], sessionId: newId, streaming: false, busy: false, socratic: null })
     // 刷新会话列表（新会话会在首条消息后出现）
     get().loadConversations()
   },
 
   /** 切换到指定会话 */
   switchSession: (sessionId) => {
-    set({ sessionId, messages: [], streaming: false, busy: false })
+    set({ sessionId, messages: [], streaming: false, busy: false, socratic: null })
     get().loadMessages(sessionId)
   },
 
@@ -101,13 +155,20 @@ export const useCompanionChatStore = create((set, get) => ({
   loadMessages: async (sessionId) => {
     try {
       const msgs = await companionGetMessages(sessionId)
-      // 把后端格式转成前端格式
-      const formatted = (msgs || []).map((m) => ({
-        id: `db-${m.id}`,
-        role: m.role,
-        text: m.text,
-        meta: m.meta || {},
-      }))
+      // 把后端格式转成前端格式；历史 ai 文本同样去口头禅（展示层清洗，不改后端存储）
+      const formatted = (msgs || []).map((m) => {
+        const meta = m.meta || {}
+        // 规则引擎判定文案（operation）原样保留可审计；LLM 生成文本（qa/chat）去口头禅
+        const text = (m.role === 'ai' && meta.intent !== 'operation')
+          ? stripTics(m.text)
+          : m.text
+        return {
+          id: `db-${m.id}`,
+          role: m.role,
+          text,
+          meta,
+        }
+      })
       set({ messages: formatted })
     } catch {
       set({ messages: [] })

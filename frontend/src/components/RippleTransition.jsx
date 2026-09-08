@@ -16,7 +16,13 @@ const DONE_AT = 2900
 const FADE_MS = 800
 const RIPPLE_START = 400
 
-const HEX_SIZE = 22
+// —— 涟漪节奏旋钮（用户可反馈再调）——
+// 单波扩散耗时（帧，60fps≈1.83s）：太大=慢到波走不完一圈；太小=急促
+const WAVE_LIFE_FRAMES = 110
+// 上一波扩到全屏距离的多少比例时发出下一波（0.7=更早叠上、衔接紧；0.95=几乎收完才出下一波）
+const NEXT_WAVE_AT = 0.8
+
+const HEX_SIZE = 32
 const HEX_W = Math.sqrt(3) * HEX_SIZE
 const HEX_H = 2 * HEX_SIZE
 const ROW_SP = HEX_H * 0.75
@@ -72,7 +78,6 @@ export default function RippleTransition({ onEmerge, onDone }) {
 
     let raf = 0
     let startedAt = 0
-    let waveTimer = 0
     let waveIdx = 0
     const waves = []
     let cells = []
@@ -111,10 +116,12 @@ export default function RippleTransition({ onEmerge, onDone }) {
     resize()
     window.addEventListener('resize', resize)
 
-    const spawnWave = () => {
+    const spawnWave = (maxDist) => {
+      // 速度自适应屏宽：保证每波 ~WAVE_LIFE_FRAMES 帧从中心扩到屏幕最远角（±15% 随机避免机械感）
+      const baseSpeed = Math.max(2.5, (maxDist - 60) / WAVE_LIFE_FRAMES)
       waves.push({
         radius: 60,
-        speed: 2.5 + Math.random() * 0.8,
+        speed: baseSpeed * (0.9 + Math.random() * 0.2),
         band: 50,
         color: BG_COLORS[waveIdx % 3],
       })
@@ -166,10 +173,12 @@ export default function RippleTransition({ onEmerge, onDone }) {
         ctx.fill()
       }
 
-      waveTimer++
-      if (waveTimer >= 25 && t < DONE_AT - 200) {
-        waveTimer = 0
-        spawnWave()
+      // 发波节奏：不是"定时叠加多波"，而是"上一波快结束时（扩到 NEXT_WAVE_AT）再出下一波"——
+      // 首尾相接、一波接一波。单波速度已按屏宽自适应（WAVE_LIFE_FRAMES 帧/波），
+      // 保证在进场窗口内确实能走到触发点，出现清晰的 2~3 波衔接。
+      const lastWave = waves[waves.length - 1]
+      if (t < DONE_AT - 200 && (!lastWave || lastWave.radius >= maxDist * NEXT_WAVE_AT)) {
+        spawnWave(maxDist)
       }
 
       for (let i = waves.length - 1; i >= 0; i--) {

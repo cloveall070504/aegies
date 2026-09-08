@@ -128,21 +128,32 @@ TOPIC_LABELS = {
 
 
 def _answer_shows_understanding(topic: str, answer: str) -> bool:
-    """判断学生回答是否表现出"理解正确方向"（用于苏格拉底式深化）。"""
+    """判断学生回答是否表现出"理解正确方向"（用于苏格拉底式深化）。
+
+    注意：苏格拉底是两层追问——第一层问"正确做法"，第二层（deepen）问
+    "如果反着来会发生什么/为什么要这样做"。所以判读既要认**操作顺序词**
+    （酸入水、扇闻、镊子），也要认**后果认知词**（暴沸、飞溅、烫伤），
+    否则学生会把"会发生暴沸飞溅"这个正确答案说对却被误判为答错。
+    """
     a = answer or ""
     if not a:
         return False
     if topic == "dilution":
         return ("酸入水" in a or "沿杯壁" in a or "慢慢加" in a
-                or ("酸" in a and a.find("酸") < a.find("水")))
+                or ("酸" in a and a.find("酸") < a.find("水"))
+                or any(w in a for w in ("暴沸", "飞溅", "溅出", "沸腾", "灼伤", "烫伤")))
     if topic == "heating_tube":
-        return ("不对人" in a or "不对着自己" in a or "预热" in a or "外焰" in a)
+        return ("不对人" in a or "不对着自己" in a or "预热" in a or "外焰" in a
+                or any(w in a for w in ("受热均匀", "防炸", "防裂", "骤热", "骤冷", "喷出", "烫伤")))
     if topic == "smell_gas":
-        return ("扇闻" in a or "扇风" in a or "不直接" in a or "不凑" in a)
+        return ("扇闻" in a or "扇风" in a or "不直接" in a or "不凑" in a
+                or any(w in a for w in ("中毒", "刺激", "伤害")))
     if topic == "waste":
-        return ("废液桶" in a or "回收" in a or "指定" in a or "不倒下水道" in a)
+        return ("废液桶" in a or "回收" in a or "指定" in a or "不倒下水道" in a
+                or any(w in a for w in ("污染", "不能混", "分类")))
     if topic == "reactive_metal":
-        return ("镊子" in a or "煤油" in a or "不沾水" in a or "不徒手" in a)
+        return ("镊子" in a or "煤油" in a or "不沾水" in a or "不徒手" in a
+                or any(w in a for w in ("着火", "燃烧", "爆炸", "起火", "遇水")))
     return False
 
 
