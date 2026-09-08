@@ -5,7 +5,8 @@ pydantic==2.10.4
 pydantic-settings==2.7.0
 PyJWT==2.10.1
 passlib[bcrypt]==1.7.4
-bcrypt>=4.0.1
+# 必须锁 4.0.1：passlib 1.7.4 与 bcrypt>=4.1 不兼容（探测逻辑触发 72 字节限制报错），会导致注册/登录全线崩溃
+bcrypt==4.0.1
 python-multipart==0.0.20
 jieba==0.42.1
 pypdf2==3.0.1
