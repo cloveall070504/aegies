@@ -247,7 +247,7 @@ export default function Nexus() {
 
       {/* 顶部信息条 */}
       <header className={`nexus__top${ready ? ' nexus__top--in' : ''}`}>
-        <span className="nexus__brand">实战避错系统</span>
+        <span className="nexus__brand">ChemGuard</span>
         <span className="nexus__who">
           {user?.display_name || user?.username}
           <em>学生</em>

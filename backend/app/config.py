@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # backend/
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "实战避错系统"
+    APP_NAME: str = "ChemGuard"
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = False
     # 运行环境：development（默认）/ production。生产环境必须用环境变量显式声明，
