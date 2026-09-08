@@ -28,12 +28,6 @@ from app.services.scan_service import analyze_text
 
 import app.main as m
 
-# 隔离 lifespan 真实 DB 副作用
-m.init_db = lambda: None
-m.seed_default_templates = lambda db: None
-m._seed_scenes = lambda db: None
-m._start_cleanup_task = lambda: None
-
 
 class _NoopRAG:
     def __init__(self, db):
@@ -46,7 +40,8 @@ class _NoopRAG:
         return []
 
 
-m.RAGService = _NoopRAG
+# 注：app.main 的 init_db / RAGService 等全局 mock 已下放到 _isolate_app_deps fixture
+# （用例级生效、teardown 还原），避免收集期污染全局 app 单例拖垮 test_api 等真实 lifespan 用例。
 
 engine = create_engine(
     "sqlite:///:memory:",
@@ -73,17 +68,46 @@ def _override_student():
     return User(id=2, username="fb_student", role="student")
 
 
-m.app.dependency_overrides[get_db] = _override_db
-m.app.dependency_overrides[get_current_user] = _override_teacher
-
 client = TestClient(m.app)
 
 
 @pytest.fixture(autouse=True)
-def _force_teacher():
+def _isolate_app_deps():
+    """用例级隔离对 app.main 全局 mock 与依赖覆盖。
+
+    原先这些 mock（`init_db`/`RAGService` 等）与 `dependency_overrides` 写在模块级，
+    pytest 收集期即对所有测试生效，会把依赖真实 lifespan 建表+种子的 test_api 等用例
+    的 `get_db` 指向空内存库，导致 `no such table`。改为进入用例时打 mock、退出时还原
+    原函数并清理覆盖，模块间互不污染。
+    """
+    import app.main as m
+
+    saved_main = {
+        n: getattr(m, n)
+        for n in ("init_db", "seed_default_templates", "_seed_scenes", "_start_cleanup_task", "RAGService")
+    }
+    m.init_db = lambda: None
+    m.seed_default_templates = lambda db: None
+    m._seed_scenes = lambda db: None
+    m._start_cleanup_task = lambda: None
+    m.RAGService = _NoopRAG
+
+    saved_ov = {
+        get_db: m.app.dependency_overrides.get(get_db),
+        get_current_user: m.app.dependency_overrides.get(get_current_user),
+    }
+    m.app.dependency_overrides[get_db] = _override_db
     m.app.dependency_overrides[get_current_user] = _override_teacher
+
     yield
-    m.app.dependency_overrides[get_current_user] = _override_teacher
+
+    for n, v in saved_main.items():
+        setattr(m, n, v)
+    for dep, v in saved_ov.items():
+        if v is None:
+            m.app.dependency_overrides.pop(dep, None)
+        else:
+            m.app.dependency_overrides[dep] = v
 
 
 def _scan_and_flag(session, behavior="用嘴吸移液管中的腐蚀性试剂"):

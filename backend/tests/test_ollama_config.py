@@ -29,8 +29,19 @@ def test_student_cannot_list_or_switch_models(client, student_headers):
     assert r2.status_code == 403
 
 
-def test_admin_switch_valid_model_updates_settings(client, admin_headers):
-    """管理员切换合法模型：settings 生效，system-info 同步反映，且持久化可重启恢复。"""
+def test_admin_switch_valid_model_updates_settings(client, admin_headers, monkeypatch):
+    """管理员切换合法模型：settings 生效，system-info 同步反映，且持久化可重启恢复。
+
+    本用例验证"Ollama 模型切换"，故钉死 AI_PROVIDER=ollama；并注入本地已安装模型清单，
+    避免无本地 Ollama 守护进程时触发"模型未安装"回滚（CI/测试环境通常不跑 Ollama）。
+    """
+    monkeypatch.setattr(settings, "AI_PROVIDER", "ollama")
+    # 注入本地已安装模型清单，避免无本地 Ollama 守护进程时触发"模型未安装"回滚。
+    # 该函数在 system.py 命名空间内被调用，需补在 system 模块上。
+    from app.api.v1 import system as _system_mod
+    monkeypatch.setattr(
+        _system_mod, "list_ollama_model_names", lambda: ["qwen2.5:7b", "qwen2.5:3b"]
+    )
     before = settings.OLLAMA_MODEL
     try:
         r = client.post(
@@ -68,6 +79,10 @@ def test_ollama_generate_self_heal_cooldown(monkeypatch):
     """
     monkeypatch.setattr(settings, "ENABLE_OLLAMA", True)
     monkeypatch.setattr(settings, "OLLAMA_RETRY_COOLDOWN", 10.0)
+    # 钉死走 Ollama 分支：本机 .env 默认 AI_PROVIDER=cloud，若不固定，
+    # try_ollama_generate 会走云端分支（且 _cloud_generate_impl 带重试循环），
+    # 导致 httpx.post 调用次数与冷却断言不符。此测试专测 Ollama 自愈冷却。
+    monkeypatch.setattr(settings, "AI_PROVIDER", "ollama")
     rag_service.reset_ollama_availability()
 
     calls = {"n": 0}

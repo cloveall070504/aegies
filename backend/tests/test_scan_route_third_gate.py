@@ -9,6 +9,8 @@
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import create_engine
@@ -23,12 +25,6 @@ from app.core.deps import get_db, get_current_user
 from app.models.user import User
 import app.main as m
 
-# ── 隔离 lifespan 里的真实 DB 副作用（init_db / 默认账号 / 场景播种）──
-m.init_db = lambda: None
-m.seed_default_templates = lambda db: None
-m._seed_scenes = lambda db: None
-m._start_cleanup_task = lambda: None
-
 
 class _NoopRAG:
     def __init__(self, db):
@@ -41,7 +37,8 @@ class _NoopRAG:
         return []
 
 
-m.RAGService = _NoopRAG
+# 注：app.main 的 init_db / RAGService 等全局 mock 已下放到 _isolate_app_deps fixture
+# （用例级生效、teardown 还原），避免收集期污染全局 app 单例拖垮 test_api 等真实 lifespan 用例。
 
 # ── 内存库 + 播种内置风险点 ──
 engine = create_engine(
@@ -65,15 +62,45 @@ def _override_user():
     return User(id=1, username="gate3", role="student")
 
 
-m.app.dependency_overrides[get_db] = _override_db
-m.app.dependency_overrides[get_current_user] = _override_user
-
 # 给内存库播种（路由里的 RAGService 是真实类，依赖这张内存表）
 _seed = next(_override_db())
 RAGService(_seed).seed_risk_points()
 _seed.close()
 
 client = TestClient(m.app)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_app_deps():
+    """用例级隔离 app.main 全局 mock 与依赖覆盖（避免污染全局 app 单例拖垮 test_api 等）。"""
+    import app.main as m
+
+    saved_main = {
+        n: getattr(m, n)
+        for n in ("init_db", "seed_default_templates", "_seed_scenes", "_start_cleanup_task", "RAGService")
+    }
+    m.init_db = lambda: None
+    m.seed_default_templates = lambda db: None
+    m._seed_scenes = lambda db: None
+    m._start_cleanup_task = lambda: None
+    m.RAGService = _NoopRAG
+
+    saved_ov = {
+        get_db: m.app.dependency_overrides.get(get_db),
+        get_current_user: m.app.dependency_overrides.get(get_current_user),
+    }
+    m.app.dependency_overrides[get_db] = _override_db
+    m.app.dependency_overrides[get_current_user] = _override_user
+
+    yield
+
+    for n, v in saved_main.items():
+        setattr(m, n, v)
+    for dep, v in saved_ov.items():
+        if v is None:
+            m.app.dependency_overrides.pop(dep, None)
+        else:
+            m.app.dependency_overrides[dep] = v
 
 
 def test_route_danger_has_trace_and_risk():

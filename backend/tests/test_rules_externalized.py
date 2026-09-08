@@ -27,12 +27,6 @@ from app.services import rules_store, agent_service
 
 import app.main as m
 
-# ── 隔离 lifespan 真实 DB 副作用 ──
-m.init_db = lambda: None
-m.seed_default_templates = lambda db: None
-m._seed_scenes = lambda db: None
-m._start_cleanup_task = lambda: None
-
 
 class _NoopRAG:
     def __init__(self, db):
@@ -45,7 +39,8 @@ class _NoopRAG:
         return []
 
 
-m.RAGService = _NoopRAG
+# 注：app.main 的 init_db / RAGService 等全局 mock 已下放到 _isolate_app_deps fixture
+# （用例级生效、teardown 还原），避免收集期污染全局 app 单例拖垮 test_api 等真实 lifespan 用例。
 
 engine = create_engine(
     "sqlite:///:memory:",
@@ -72,9 +67,6 @@ def _override_student():
     return User(id=2, username="rule_student", role="student")
 
 
-m.app.dependency_overrides[get_db] = _override_db
-m.app.dependency_overrides[get_current_user] = _override_teacher
-
 _seed = next(_override_db())
 RAGService(_seed).seed_risk_points()
 _seed.close()
@@ -83,13 +75,43 @@ client = TestClient(m.app)
 
 
 @pytest.fixture(autouse=True)
-def _setup_teacher_and_restore_store():
-    # 强制 teacher 角色，消除与 test_scan_route_third_gate 共享 app 实例时
-    # get_current_user override 的加载顺序不确定性。
+def _isolate_app_deps():
+    """用例级隔离 app.main 全局 mock、依赖覆盖与 rules_store 路径。
+
+    原实现将这些写模块级，收集期即对所有测试生效，会污染依赖真实 lifespan 的 test_api 等用例。
+    进入用例时打 mock、退出时还原原函数、清理覆盖并复位 rules_store 路径。
+    """
+    import app.main as m
+
+    saved_main = {
+        n: getattr(m, n)
+        for n in ("init_db", "seed_default_templates", "_seed_scenes", "_start_cleanup_task", "RAGService")
+    }
+    m.init_db = lambda: None
+    m.seed_default_templates = lambda db: None
+    m._seed_scenes = lambda db: None
+    m._start_cleanup_task = lambda: None
+    m.RAGService = _NoopRAG
+
+    saved_ov = {
+        get_db: m.app.dependency_overrides.get(get_db),
+        get_current_user: m.app.dependency_overrides.get(get_current_user),
+    }
+    m.app.dependency_overrides[get_db] = _override_db
+    m.app.dependency_overrides[get_current_user] = _override_teacher
+
     saved_path = rules_store.RULES_PATH
-    m.app.dependency_overrides[get_current_user] = _override_teacher
+    rules_store.reload(saved_path)  # 进入时确保规则文件状态干净
+
     yield
-    m.app.dependency_overrides[get_current_user] = _override_teacher
+
+    for n, v in saved_main.items():
+        setattr(m, n, v)
+    for dep, v in saved_ov.items():
+        if v is None:
+            m.app.dependency_overrides.pop(dep, None)
+        else:
+            m.app.dependency_overrides[dep] = v
     rules_store.RULES_PATH = saved_path
     rules_store.reload(saved_path)
 
