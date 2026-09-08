@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api.v1 import (assignment, auth, avatar, cases, companion, dashboard, docs,
+from app.api.v1 import (assignment, auth, avatar, cases, coach, companion, dashboard, docs,
                         feedback, meta, org, profile, quiz, report, risk_point, rules,
                         scenario, scan, scene_system, simulation, system, tts)
 from app.config import settings
@@ -106,6 +106,7 @@ api_v1 = [
     profile.router,
     scan.router,
     cases.router,
+    coach.router,
     docs.router,
     quiz.router,
     report.router,

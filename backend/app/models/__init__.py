@@ -16,6 +16,7 @@ from app.models.scene_step import SceneStep
 from app.models.training import TrainingRecord
 from app.models.assignment import Assignment, AssignmentProgress
 from app.models.learning import ReviewItem, Notification
+from app.models.coach import StudentCoachProfile, CoachBadge
 
 __all__ = [
     "User",
@@ -38,4 +39,6 @@ __all__ = [
     "Notification",
     "Conversation",
     "ConversationMessage",
+    "StudentCoachProfile",
+    "CoachBadge",
 ]
