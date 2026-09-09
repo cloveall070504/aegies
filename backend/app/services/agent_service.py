@@ -1085,7 +1085,7 @@ class AgentService:
         narrative_reply = _ground_actor_reply(raw_reply, behavior, consequence) if raw_reply else ""
         trust_mode = "llm_enhanced" if narrative_reply else "rule_deterministic"
         verified_by = "rule_engine"
-        critic_divergence = False
+        critic_divergence = 0  # 0=无分歧（Integer 列，勿用 bool）
         critic_reply = None
         if raw_reply:
             verified_by = "rule_engine+llm_critic"
@@ -1109,7 +1109,7 @@ class AgentService:
                 # （如 "我今天有点累" / "实验挺简单的" 等本无风险声明的输入都会被判红）。
                 # 因此：无论规则置信度高低，critic 的「需修正」一律只标记为「分歧」，
                 # 绝不修改 _critic_validate 的确定性结果——ai_checked 为 0 仅当规则发现硬伤。
-                critic_divergence = True
+                critic_divergence = 1  # 1=规则引擎与模型 Critic 存在分歧（Integer 列，勿用 bool）
                 if ai_checked == 1:
                     # 规则已确定性通过，但模型有保留意见 -> 以规则为准，诚实标注分歧。
                     model_label = "千问模型" if settings.AI_PROVIDER == "cloud" else "本地模型"

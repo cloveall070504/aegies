@@ -83,7 +83,7 @@ def test_scenario_infer_trust_fields(client, student_headers):
     assert d["engine"] == "rule"
     assert d["trust_mode"] == "rule_deterministic"
     assert d["verified_by"] == "rule_engine"
-    assert d["critic_divergence"] is False
+    assert d["critic_divergence"] == 0  # 列类型为 Integer，存 0/1
     # 命中了高危风险词
     assert "未佩戴" in d["evidence"]["keyword_hits"]["high"]
 
