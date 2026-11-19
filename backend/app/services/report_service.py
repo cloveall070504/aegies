@@ -211,6 +211,11 @@ def _write_pdf(path: Path, title_text: str, elements: list):
 
 
 def generate_personal_report(db: Session, user: User) -> str:
+    """生成个人避错成长报告 PDF，返回文件路径。
+
+    内容：个人画像（高频错误/薄弱点/达标率）+ 推演记录 + 自测成绩 + 培训前后对比。
+    用 reportlab 生成，落盘到 settings.REPORT_DIR。
+    """
     profile = db.query(PersonalProfile).filter(PersonalProfile.user_id == user.id).first()
     records = db.query(OperationRecord).filter(OperationRecord.user_id == user.id).order_by(OperationRecord.id).all()
     quizzes = db.query(QuizRecord).filter(QuizRecord.user_id == user.id).all()
@@ -320,6 +325,10 @@ def generate_personal_report(db: Session, user: User) -> str:
 
 
 def generate_org_report(db: Session, org_id: str) -> str:
+    """生成组织（班级/班组）风险画像报告 PDF，返回文件路径。
+
+    内容：风险分布（高中低）、高频错误 Top、成员统计、培训前后平均风险对比。
+    """
     org = db.query(OrgProfile).filter(OrgProfile.org_id == org_id).first()
     now = datetime.now()
     fname = f"org_report_{org_id}_{now:%Y%m%d_%H%M%S}.pdf"

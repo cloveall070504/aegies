@@ -75,6 +75,15 @@ export const gradeAssignment = (assignmentId, userId, score, comment) =>
 export const closeAssignment = (id) => client.put(`/assignments/${id}/close`)
 export const deleteAssignment = (id) => client.delete(`/assignments/${id}`)
 export const updateAssignmentProgress = (data) => client.put('/assignments/progress', data)
+// 教师：一键催交 + AI 预判分
+export const remindAssignment = (id) => client.post(`/assignments/${id}/remind`)
+export const aiGradeAssignment = (id) => client.post(`/assignments/${id}/ai-grade`)
+
+// 教师：一键组卷
+export const generatePaper = (data) => client.post('/quiz/paper/generate', data)
+export const listPapers = () => client.get('/quiz/papers')
+export const getPaper = (id) => client.get(`/quiz/papers/${id}`)
+export const deletePaper = (id) => client.delete(`/quiz/papers/${id}`)
 
 // 证书
 export const getCertificate = () => client.get('/profile/certificate')

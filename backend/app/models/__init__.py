@@ -17,6 +17,7 @@ from app.models.training import TrainingRecord
 from app.models.assignment import Assignment, AssignmentProgress
 from app.models.learning import ReviewItem, Notification
 from app.models.coach import StudentCoachProfile, CoachBadge
+from app.models.quiz_paper import QuizPaper
 
 __all__ = [
     "User",
@@ -41,4 +42,5 @@ __all__ = [
     "ConversationMessage",
     "StudentCoachProfile",
     "CoachBadge",
+    "QuizPaper",
 ]

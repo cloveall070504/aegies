@@ -32,17 +32,18 @@ class ReviewItem(Base):
     __tablename__ = "review_items"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, nullable=False, index=True)
-    item_id = Column(String(64), nullable=False, default="")
-    scene_code = Column(String(64), nullable=False, default="")
-    qtype = Column(String(16), nullable=False, default="choice")
-    question_text = Column(String(1024), nullable=False, default="")
-    interval_days = Column(Integer, nullable=False, default=1)
-    repetitions = Column(Integer, nullable=False, default=0)
-    ease = Column(Float, nullable=False, default=2.5)
-    last_reviewed_at = Column(DateTime, nullable=True)
-    next_review_at = Column(DateTime, nullable=False, default=_default_next_review, index=True)
-    wrong_count = Column(Integer, nullable=False, default=1)
+    user_id = Column(Integer, nullable=False, index=True)          # 所属学员
+    item_id = Column(String(64), nullable=False, default="")        # 题目唯一标识（内置题 q1 / 导入题 uq{id}）
+    scene_code = Column(String(64), nullable=False, default="")     # 所属场景（与题目场景绑定，避免跨场景串题）
+    qtype = Column(String(16), nullable=False, default="choice")    # 题型：choice/judge/sequence/open
+    question_text = Column(String(1024), nullable=False, default="")  # 题干快照（复习展示用，避免题目删除后丢失）
+    # —— SM-2 间隔重复三要素 ——
+    interval_days = Column(Integer, nullable=False, default=1)      # 当前复习间隔（天）
+    repetitions = Column(Integer, nullable=False, default=0)        # 连续答对次数（用于推后间隔）
+    ease = Column(Float, nullable=False, default=2.5)               # 难度系数（SM-2 默认 2.5，越熟练越小）
+    last_reviewed_at = Column(DateTime, nullable=True)              # 上次复习时间
+    next_review_at = Column(DateTime, nullable=False, default=_default_next_review, index=True)  # 下次到期时间
+    wrong_count = Column(Integer, nullable=False, default=1)        # 累计答错次数
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
     __table_args__ = (
@@ -71,12 +72,12 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, nullable=False, index=True)
-    type = Column(String(32), nullable=False, default="system")
-    title = Column(String(256), nullable=False, default="")
-    content = Column(String(1024), nullable=False, default="")
-    related_url = Column(String(256), nullable=False, default="")
-    is_read = Column(Boolean, nullable=False, default=False)
+    user_id = Column(Integer, nullable=False, index=True)           # 接收者
+    type = Column(String(32), nullable=False, default="system")     # 类型：review_reminder / assignment_reminder / system
+    title = Column(String(256), nullable=False, default="")         # 标题
+    content = Column(String(1024), nullable=False, default="")      # 正文
+    related_url = Column(String(256), nullable=False, default="")   # 点击跳转的前端路由（如 /learning /assignments）
+    is_read = Column(Boolean, nullable=False, default=False)        # 是否已读
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
     def to_dict(self):

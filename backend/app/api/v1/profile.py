@@ -40,6 +40,11 @@ def personal(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """个人避错画像：汇总高频错误、薄弱点、达标率、平均风险分等指标。
+
+    先 refresh_profile 重算画像（基于推演记录聚合），再按场景过滤返回；
+    移动端（X-Client-Type=mobile）返回精简字段。
+    """
     is_mobile = client_type == "mobile"
     refresh_profile(db, user.id)
 

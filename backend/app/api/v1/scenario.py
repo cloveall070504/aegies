@@ -24,6 +24,11 @@ async def infer(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """场景推演：对一条操作做风险判定（规则引擎 + 双 AI 自检 + 条款溯源）。
+
+    结果写入推演记录（OperationRecord），供画像/统计/教师批改使用；
+    无关输入（level=none）不落库，避免污染画像。
+    """
     result = await AgentService(db).infer(req.behavior, req.scene_type)
 
     # 无关输入（未识别到风险）不写入推演记录，避免污染画像与统计

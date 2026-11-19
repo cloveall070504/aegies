@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listManagedQuiz, createQuizQuestion, updateQuizQuestion, deleteQuizQuestion } from '../../api'
+import PaperGenerator from './PaperGenerator'
 
 const emptyForm = { question: '', options: ['', ''], answer: 0, qtype: 'choice', answer_seq: [], seqPos: [1, 2], answer_text: '', analysis: '', scene_type: 'experiment', scene_code: '' }
 
@@ -14,6 +15,7 @@ function computeSeq(seqPos) {
 }
 
 export default function QuizManagement() {
+  const [tab, setTab] = useState('bank')
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -104,8 +106,25 @@ export default function QuizManagement() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h1 className="page-title" style={{ margin: 0 }}>题库管理</h1>
-        <button className="btn" onClick={openCreate}>＋ 新建题目</button>
+        {tab === 'bank' && <button className="btn" onClick={openCreate}>＋ 新建题目</button>}
       </div>
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+        <button
+          className="chip-btn"
+          style={{ padding: '8px 18px', borderRadius: '9px 9px 0 0', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, background: tab === 'bank' ? 'var(--card)' : 'transparent', color: tab === 'bank' ? 'var(--primary)' : 'var(--text-2)' }}
+          onClick={() => setTab('bank')}
+        >📝 题库</button>
+        <button
+          className="chip-btn"
+          style={{ padding: '8px 18px', borderRadius: '9px 9px 0 0', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, background: tab === 'paper' ? 'var(--card)' : 'transparent', color: tab === 'paper' ? 'var(--primary)' : 'var(--text-2)' }}
+          onClick={() => setTab('paper')}
+        >🎫 一键组卷</button>
+      </div>
+
+      {tab === 'paper' ? (
+        <PaperGenerator />
+      ) : (
+        <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '10px 14px', borderRadius: 12, background: 'rgba(59,130,246,0.1)', border: '1px solid #3b82f655' }}>
         <span style={{ fontSize: 12, fontWeight: 800, color: '#fff', background: '#3b82f6', borderRadius: 999, padding: '4px 10px' }}>教师内容生产</span>
         <span className="muted" style={{ fontSize: 13 }}>支持单选 / 判断 / 操作排序 / 开放题（开放题练习模式接 AI 批改）。自建题库 → 学生自测 → 成绩回流画像</span>
@@ -222,6 +241,8 @@ export default function QuizManagement() {
             ))}
           </div>
         )
+      )}
+        </div>
       )}
     </div>
   )

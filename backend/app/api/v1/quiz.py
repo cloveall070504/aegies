@@ -314,6 +314,16 @@ async def _grade_open_answer(question: str, ref: str, student: str) -> str:
 
 @router.post("/submit")
 async def submit(req: QuizSubmit, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """提交自测并判分。
+
+    判分规则：
+      - choice/judge/sequence 题计入总分（score = 正确数/计分题数 × 100）；
+      - open 开放题：practice 模式接 Ollama 自然语言批改（失败降级为提示文案），
+        exam 模式不计分；
+      - 错题写入 QuizRecord 并 upsert 间隔重复复习项（ReviewItem，SM-2）；
+      - 答对的题若有旧复习项则移除（视为已掌握）；
+      - 存在错题时生成站内复习提醒（去重，避免反复新建）。
+    """
     # 提交时按当前场景题库校验
     bank = _filter_bank(getattr(req, "scene_type", "experiment"), db, scene_code=getattr(req, "scene_code", ""))
     if len(req.answers) != len(bank):
@@ -744,4 +754,111 @@ def delete_question(
     db.delete(row)
     db.commit()
     return ok({"deleted": question_id}, message="删除成功")
+
+
+# ===== 教师一键组卷 =====
+
+class PaperGenerate(BaseModel):
+    title: str = "随堂测验"
+    scene_code: str = ""
+    count: int = 10  # 抽题数量
+    qtypes: list[str] = []  # 可选：限定题型（choice/judge/sequence/open），空=不限
+
+
+@router.post("/paper/generate")
+def generate_paper(
+    req: PaperGenerate,
+    user: User = Depends(require_roles("teacher", "admin")),
+    db: Session = Depends(get_db),
+):
+    """教师一键组卷：按场景/题数从题库抽题，生成随堂测验卷并落库。
+
+    抽题逻辑：
+      - 优先取指定场景的题目（scene_code），不足时用该场景类型下的通用题补齐；
+      - 随机抽取，题数封顶为可用题量；
+      - 返回完整题目内容（含答案，仅教师可见）+ 卷子 id，供前端展示/二维码下发。
+    """
+    bank = _filter_bank("experiment", db, scene_code=req.scene_code or "")
+    if req.qtypes:
+        bank = [q for q in bank if q.get("qtype", "choice") in req.qtypes]
+    if not bank:
+        return fail("该场景下暂无可用题目，请先在创作台录入题库", code=404)
+
+    import random
+    n = max(1, min(req.count, len(bank)))
+    picked = random.sample(bank, n)
+
+    # 记录抽中的题目 id（内置题为字符串 id，导入题为数值 id）
+    from app.models.quiz_paper import QuizPaper as QPModel
+    qids = [q["id"] for q in picked]
+    paper = QPModel(
+        title=req.title.strip() or "随堂测验",
+        scene_code=req.scene_code or "",
+        question_ids=json.dumps(qids, ensure_ascii=False),
+        created_by=user.id,
+    )
+    db.add(paper)
+    db.commit()
+    db.refresh(paper)
+
+    return ok({
+        "paper": paper.to_dict(),
+        "questions": picked,
+        "scene_code": req.scene_code or "",
+    }, message=f"已生成测验卷「{paper.title}」，共 {n} 题")
+
+
+@router.get("/papers")
+def list_papers(
+    user: User = Depends(require_roles("teacher", "admin")),
+    db: Session = Depends(get_db),
+):
+    """教师查看已生成的测验卷列表。"""
+    from app.models.quiz_paper import QuizPaper as QPModel
+    papers = db.query(QPModel).order_by(QPModel.id.desc()).all()
+    return ok([p.to_dict() for p in papers])
+
+
+@router.get("/papers/{paper_id}")
+def get_paper(
+    paper_id: int,
+    user: User = Depends(require_roles("teacher", "admin")),
+    db: Session = Depends(get_db),
+):
+    """教师查看某测验卷的完整题目（含答案）。"""
+    from app.models.quiz_paper import QuizPaper as QPModel
+    paper = db.get(QPModel, paper_id)
+    if not paper:
+        return fail("测验卷不存在", code=404)
+
+    try:
+        qids = json.loads(paper.question_ids) if paper.question_ids else []
+    except Exception:
+        qids = []
+    # 从题库（内置 + 导入）按 id 还原题目
+    bank = list(QUIZ_BANK) + _load_imported(db)
+    qmap = {str(q["id"]): q for q in bank}
+    questions = [qmap[str(i)] for i in qids if str(i) in qmap]
+    return ok({
+        "paper": paper.to_dict(),
+        "questions": questions,
+    })
+
+
+@router.delete("/papers/{paper_id}")
+def delete_paper(
+    paper_id: int,
+    user: User = Depends(require_roles("teacher", "admin")),
+    db: Session = Depends(get_db),
+):
+    """教师删除测验卷。"""
+    from app.models.quiz_paper import QuizPaper as QPModel
+    paper = db.get(QPModel, paper_id)
+    if not paper:
+        return fail("测验卷不存在", code=404)
+    if user.role != "admin" and paper.created_by != user.id:
+        return fail("无权删除他人创建的测验卷", code=403)
+    db.delete(paper)
+    db.commit()
+    return ok({"deleted": paper_id}, message="测验卷已删除")
 

@@ -8,11 +8,11 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(256), nullable=False)
-    file_path = Column(String(512), nullable=False)
-    scene_type = Column(String(64), default="general")  # experiment / workshop / general
-    uploaded_by = Column(Integer, default=0)
-    status = Column(String(32), default="pending")  # pending / processing / done / failed
+    title = Column(String(256), nullable=False)                  # 文档标题（展示用）
+    file_path = Column(String(512), nullable=False)              # 上传文件的磁盘路径
+    scene_type = Column(String(64), default="general")           # 关联场景：experiment / workshop / general
+    uploaded_by = Column(Integer, default=0)                     # 上传者用户 ID（0=系统/未知）
+    status = Column(String(32), default="pending")               # 处理状态：pending / processing / done / failed
     created_at = Column(DateTime, server_default=func.now())
 
     def to_dict(self):

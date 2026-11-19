@@ -7,6 +7,16 @@ import {
 import {
   listManagedQuiz, createQuizQuestion, updateQuizQuestion, deleteQuizQuestion,
 } from '../../api/index'
+import PaperGenerator from './PaperGenerator'
+
+/**
+ * 教学创作台（教师/管理员）：可视化编辑实验场景 + 分步骤 + 题库。
+ * 子组件职责：
+ *   - SceneManager：场景列表的增删查 + 展开加载步骤
+ *   - SceneForm / StepForm：场景 / 步骤的新建编辑表单
+ *   - QuizManager / QuestionForm：题库的增删改查表单
+ *   - StepOptionsEditor / QuizOptionsEditor：选项编辑（单选正确答案 + 后果 + 解析）
+ */
 
 const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, margin: '10px 0 4px', color: 'var(--text)' }
 const inputStyle = {
@@ -518,8 +528,9 @@ export default function TeacherWorkbench() {
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
         <button style={tabBtn('scene', '🎬 场景编辑')} onClick={() => setTab('scene')}>🎬 场景编辑</button>
         <button style={tabBtn('quiz', '📝 题库编辑')} onClick={() => setTab('quiz')}>📝 题库编辑</button>
+        <button style={tabBtn('paper', '🎫 一键组卷')} onClick={() => setTab('paper')}>🎫 一键组卷</button>
       </div>
-      {tab === 'scene' ? <SceneManager role={role} /> : <QuizManager role={role} />}
+      {tab === 'scene' ? <SceneManager role={role} /> : tab === 'quiz' ? <QuizManager role={role} /> : <PaperGenerator />}
     </div>
   )
 }

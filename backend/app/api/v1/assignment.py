@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_roles
 from app.database import get_db
 from app.models.assignment import Assignment, AssignmentProgress
+from app.models.learning import Notification
+from app.models.operation_record import OperationRecord
 from app.models.user import User
 from app.utils.response import fail, ok
 
@@ -199,6 +201,98 @@ def grade_assignment(
     return ok(p.to_dict(), message="批改完成")
 
 
+@router.post("/{assignment_id}/remind")
+def remind_assignment(
+    assignment_id: int,
+    user: User = Depends(require_roles("teacher", "admin")),
+    db: Session = Depends(get_db),
+):
+    """教师一键催交：对未完成该作业的学生批量发送站内提醒。"""
+    a = db.get(Assignment, assignment_id)
+    if not a:
+        return fail("作业不存在", code=404)
+    if user.role == "teacher" and a.created_by != user.id:
+        return fail("无权操作他人作业", code=403)
+
+    pending = (db.query(AssignmentProgress, User)
+               .join(User, User.id == AssignmentProgress.user_id)
+               .filter(AssignmentProgress.assignment_id == assignment_id,
+                       AssignmentProgress.status != "completed")
+               .all())
+    if not pending:
+        return ok({"reminded": 0, "message": "所有学生均已完成该作业，无需催交"})
+
+    reminded = 0
+    for p, s in pending:
+        db.add(Notification(
+            user_id=s.id,
+            type="assignment_reminder",
+            title=f"作业提醒：{a.title}",
+            content=f"老师提醒你按时完成作业「{a.title}」。"
+                    + (f"截止时间：{a.due_date.strftime('%Y-%m-%d %H:%M')}。" if a.due_date else "请尽快完成。"),
+            related_url="/assignments",
+        ))
+        reminded += 1
+    db.commit()
+    return ok({"reminded": reminded, "total_pending": len(pending)}, message=f"已提醒 {reminded} 名未完成学生")
+
+
+@router.post("/{assignment_id}/ai-grade")
+def ai_grade_assignment(
+    assignment_id: int,
+    user: User = Depends(require_roles("teacher", "admin")),
+    db: Session = Depends(get_db),
+):
+    """AI 预判分：基于学生在该作业关联场景的历史推演记录，由规则引擎自动打草稿分。
+
+    打分依据（确定性、可解释）：
+      - 取该学生在此场景（或全部）的推演记录；
+      - 按「平均风险分」折算安全掌握度，并叠加「高危记录数」扣分；
+      - 无记录 → 预判 0 分并标注「暂无练习数据」。
+    预判分写入 AssignmentProgress.ai_score / ai_comment，供教师在成绩册里一键采纳。
+    """
+    a = db.get(Assignment, assignment_id)
+    if not a:
+        return fail("作业不存在", code=404)
+    if user.role == "teacher" and a.created_by != user.id:
+        return fail("无权操作他人作业", code=403)
+
+    progress = (db.query(AssignmentProgress, User)
+                .join(User, User.id == AssignmentProgress.user_id)
+                .filter(AssignmentProgress.assignment_id == assignment_id,
+                        AssignmentProgress.status == "completed")
+                .all())
+
+    graded = 0
+    for p, s in progress:
+        # 取学生在该场景下的推演记录；无场景约束时取全部记录
+        q = db.query(OperationRecord).filter(OperationRecord.user_id == s.id)
+        if a.scene_code:
+            q = q.filter(OperationRecord.scene_code == a.scene_code)
+        records = q.all()
+
+        if not records:
+            p.ai_score = 0
+            p.ai_comment = "暂无该场景练习记录，无法预判，请教师人工评阅。"
+        else:
+            # 平均风险分越低说明操作越安全 → 掌握度越高
+            avg_risk = sum(r.risk_score or 0 for r in records) / len(records)
+            high_count = sum(1 for r in records if r.level == "high")
+            # 安全掌握度 = 100 - 平均风险分，再按高危记录数额外扣分（每项 -10，封顶 -30）
+            base = max(0.0, 100 - avg_risk)
+            ai_score = max(0.0, round(base - min(high_count * 10, 30), 1))
+            p.ai_score = ai_score
+            p.ai_comment = (
+                f"基于 {len(records)} 条推演记录预判：平均风险分 {avg_risk:.1f}，"
+                f"高危记录 {high_count} 条。"
+            )
+        p.graded = 0  # 预判分不算正式批改
+        graded += 1
+    db.commit()
+    return ok({"graded": graded, "total_completed": len(progress)},
+              message=f"已为 {graded} 名学生生成 AI 预判分，可在成绩册中一键采纳")
+
+
 @router.get("/{assignment_id}/gradebook")
 def gradebook(
     assignment_id: int,
@@ -224,6 +318,8 @@ def gradebook(
             "score": p.score,
             "comment": p.comment or "",
             "graded": bool(p.graded),
+            "ai_score": p.ai_score,
+            "ai_comment": p.ai_comment or "",
             "completed_at": p.completed_at.isoformat() if p.completed_at else None,
         })
     return ok({

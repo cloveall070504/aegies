@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { listAssignments, createAssignment, getAssignmentProgress, closeAssignment, deleteAssignment, updateAssignmentProgress, asList } from '../../api'
+import { listAssignments, createAssignment, getAssignmentProgress, getAssignmentGradebook, closeAssignment, deleteAssignment, updateAssignmentProgress, remindAssignment, aiGradeAssignment, gradeAssignment, asList } from '../../api'
 import { formatTime } from '../../utils/format'
 import { useSceneCode, useSceneName } from '../../hooks/useSceneType'
 import PageHead from '../../components/PageHead'
@@ -129,8 +129,10 @@ function TeacherAssignments() {
   const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [progressView, setProgressView] = useState(null)
+  const [gradebookView, setGradebookView] = useState(null)
   const [form, setForm] = useState({ title: '', description: '', scene_code: sceneCode, task_type: 'sim_train', due_date: '' })
   const [creating, setCreating] = useState(false)
+  const [busy, setBusy] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -164,7 +166,39 @@ function TeacherAssignments() {
   }
 
   const handleViewProgress = async (id) => {
-    try { const d = await getAssignmentProgress(id); setProgressView(d) } catch (e) { setError(e.message) }
+    try { const d = await getAssignmentProgress(id); setProgressView(d); setGradebookView(null) } catch (e) { setError(e.message) }
+  }
+
+  const handleRemind = async (id) => {
+    setBusy('remind'); setError('')
+    try {
+      const d = await remindAssignment(id)
+      setError('') // 用成功消息占位
+      alert(d?.message || `已提醒 ${d?.reminded ?? 0} 名学生`)
+      load()
+    } catch (e) { setError(e.message) } finally { setBusy('') }
+  }
+
+  const handleAiGrade = async (id) => {
+    setBusy('aigrade'); setError('')
+    try {
+      const d = await aiGradeAssignment(id)
+      alert(d?.message || `已生成 ${d?.graded ?? 0} 份 AI 预判分`)
+      load()
+    } catch (e) { setError(e.message) } finally { setBusy('') }
+  }
+
+  const handleViewGradebook = async (id) => {
+    try { const d = await getAssignmentGradebook(id); setGradebookView(d); setProgressView(null) } catch (e) { setError(e.message) }
+  }
+
+  const handleAdoptScore = async (assignmentId, userId, aiScore) => {
+    setBusy(`adopt-${userId}`); setError('')
+    try {
+      await gradeAssignment(assignmentId, userId, aiScore, '（采纳 AI 预判分）')
+      alert(`已采纳学生预判分 ${aiScore} 作为正式成绩`)
+      handleViewGradebook(assignmentId)
+    } catch (e) { setError(e.message) } finally { setBusy('') }
   }
 
   if (loading) return <div className="card"><div className="skeleton" style={{ height: 100 }} /></div>
@@ -224,11 +258,20 @@ function TeacherAssignments() {
 
       {progressView && (
         <div className="card" style={{ marginBottom: 16, border: '1px solid var(--accent, #4f8cff)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
             <h3 className="section-title" style={{ margin: 0 }}><span className="dot" />学生进度：{progressView.assignment.title}</h3>
-            <button className="btn-outline chip-btn" onClick={() => setProgressView(null)}>关闭</button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn-outline chip-btn" onClick={() => handleRemind(progressView.assignment.id)} disabled={busy === 'remind'}>
+                {busy === 'remind' ? '催交中…' : '🔔 一键催交'}
+              </button>
+              <button className="btn-outline chip-btn" onClick={() => handleAiGrade(progressView.assignment.id)} disabled={busy === 'aigrade'}>
+                {busy === 'aigrade' ? '预判中…' : '🤖 AI 预判分'}
+              </button>
+              <button className="btn-outline chip-btn" onClick={() => handleViewGradebook(progressView.assignment.id)}>📊 成绩册</button>
+              <button className="btn-outline chip-btn" onClick={() => { setProgressView(null); setGradebookView(null) }}>关闭</button>
+            </div>
           </div>
-          <div className="muted" style={{ marginBottom: 12, fontSize: 13 }}>完成 {progressView.completed} / {progressView.total} 人</div>
+          <div className="muted" style={{ marginBottom: 12, fontSize: 13 }}>完成 {progressView.completed} / {progressView.total} 人 · 未完成的学生可一键催交</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
@@ -248,6 +291,59 @@ function TeacherAssignments() {
                     <td style={{ padding: '8px 12px', textAlign: 'center' }}><span style={{ color: PROGRESS_COLOR[s.status], fontWeight: 600 }}>{PROGRESS_LABEL[s.status]}</span></td>
                     <td style={{ padding: '8px 12px', textAlign: 'center' }}>{s.score || '-'}</td>
                     <td style={{ padding: '8px 12px', textAlign: 'center' }} className="muted">{s.completed_at ? formatTime(s.completed_at) : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {gradebookView && (
+        <div className="card" style={{ marginBottom: 16, border: '1px solid var(--accent, #4f8cff)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <h3 className="section-title" style={{ margin: 0 }}><span className="dot" />成绩册：{gradebookView.assignment.title}</h3>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-outline chip-btn" onClick={() => handleAiGrade(gradebookView.assignment.id)} disabled={busy === 'aigrade'}>
+                {busy === 'aigrade' ? '预判中…' : '🤖 AI 预判分'}
+              </button>
+              <button className="btn-outline chip-btn" onClick={() => { setGradebookView(null); setProgressView(null) }}>关闭</button>
+            </div>
+          </div>
+          <div className="muted" style={{ marginBottom: 12, fontSize: 13 }}>已批改 {gradebookView.graded} / {gradebookView.total} 人 · 点击「采纳」可把 AI 预判分转为正式成绩</div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ textAlign: 'left', padding: '8px 12px' }}>学生</th>
+                  <th style={{ textAlign: 'center', padding: '8px 12px' }}>状态</th>
+                  <th style={{ textAlign: 'center', padding: '8px 12px' }}>AI 预判分</th>
+                  <th style={{ textAlign: 'center', padding: '8px 12px' }}>正式成绩</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px' }}>预判依据</th>
+                  <th style={{ textAlign: 'center', padding: '8px 12px' }}>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gradebookView.students.map((s) => (
+                  <tr key={s.user_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '8px 12px', fontWeight: 600 }}>{s.display_name || s.username}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}><span style={{ color: PROGRESS_COLOR[s.status], fontWeight: 600 }}>{PROGRESS_LABEL[s.status]}</span></td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      {s.ai_score != null ? (
+                        <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{s.ai_score}</span>
+                      ) : <span className="muted">—</span>}
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      {s.graded ? <span style={{ fontWeight: 700, color: 'var(--green)' }}>{s.score}</span> : <span className="muted">未批改</span>}
+                    </td>
+                    <td style={{ padding: '8px 12px', fontSize: 12 }} className="muted">{s.ai_comment || '—'}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      {s.ai_score != null && !s.graded && (
+                        <button className="btn-outline chip-btn" onClick={() => handleAdoptScore(gradebookView.assignment.id, s.user_id, s.ai_score)} disabled={busy === `adopt-${s.user_id}`}>
+                          {busy === `adopt-${s.user_id}` ? '采纳中…' : '✓ 采纳'}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

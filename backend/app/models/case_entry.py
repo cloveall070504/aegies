@@ -8,13 +8,13 @@ class CaseEntry(Base):
     __tablename__ = "case_entries"
 
     id = Column(Integer, primary_key=True, index=True)
-    behavior = Column(String(1024), nullable=False)
-    risk_level = Column(String(16), default="medium")
-    frequency = Column(Integer, default=1)
-    status = Column(String(32), default="pending")  # pending / approved / rejected
-    source = Column(String(128), default="")        # user / auto / doc
-    scene_type = Column(String(64), default="general")
-    analysis = Column(String(2048), default="")
+    behavior = Column(String(1024), nullable=False)                 # 错误行为描述（如"未验纯就点燃氢气"）
+    risk_level = Column(String(16), default="medium")               # 风险等级：high / medium / low
+    frequency = Column(Integer, default=1)                          # 出现频次（用于"高频错误"排序）
+    status = Column(String(32), default="pending")                  # 审核状态：pending / approved / rejected
+    source = Column(String(128), default="")                        # 来源：user / auto / doc
+    scene_type = Column(String(64), default="general")              # 场景类型：experiment / general
+    analysis = Column(String(2048), default="")                     # 案例解析（后果 + 正确做法）
     created_at = Column(DateTime, server_default=func.now())
 
     def to_dict(self):

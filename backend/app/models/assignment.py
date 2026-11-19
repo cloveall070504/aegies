@@ -54,6 +54,9 @@ class AssignmentProgress(Base):
     # 教师批改
     comment = Column(Text, default="")                   # 教师评语
     graded = Column(Integer, default=0)                  # 0=未批改 1=已批改
+    # AI 预判分（规则引擎草稿分）：教师批改前自动生成，可采纳或修改
+    ai_score = Column(Float, nullable=True)              # 规则引擎预判的得分（0-100）
+    ai_comment = Column(Text, default="")                # 预判依据说明
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     def to_dict(self):
@@ -65,6 +68,8 @@ class AssignmentProgress(Base):
             "score": self.score,
             "comment": self.comment,
             "graded": bool(self.graded),
+            "ai_score": self.ai_score,
+            "ai_comment": self.ai_comment or "",
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

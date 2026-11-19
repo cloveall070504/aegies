@@ -974,6 +974,17 @@ class AgentService:
         self.db = db
 
     async def infer(self, behavior: str, scene_type: str = "experiment") -> dict:
+        """核心推理入口：对一条操作/行为做风险判定，返回完整判定结果。
+
+        流程（规则引擎为唯一事实源，LLM 仅做旁白润色）：
+          1. RAG 检索命中风险点条款（refs），取模板；
+          2. 关键词命中分析（_keyword_hits）+ 条款等级（_ref_based_level）确定候选等级；
+          3. 化学域网关：非化学领域且无强条款命中、无高危关键词 → 判 NONE，不越界误报；
+          4. compute_risk_score 打出 0-100 风险分 + 可解释评分明细（A3 透明化）；
+          5. 结果交 LLM 润色后果/整改（超时或失败自动降级为规则引擎原文，诚实不编造）。
+
+        返回字典含 level/risk_score/consequence/correction/source_refs/score_breakdown 等字段。
+        """
         rag = RAGService(self.db)
         refs = rag.search(behavior, scene_type, top_k=3)
         template = get_template(self.db, "student")

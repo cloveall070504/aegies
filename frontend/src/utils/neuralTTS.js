@@ -173,50 +173,11 @@ export function ensureZhVoicesLoaded() {
   });
 }
 
-function _speakViaWebSpeech(text, voice, rate, pitch, volume) {
-  return new Promise(function(resolve, reject) {
-    if (!window.speechSynthesis) {
-      reject(new Error('Web Speech API not available'));
-      return;
-    }
-    var utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'zh-CN';
-    utter.rate = 1.0;
-    // rate 是 "+18%" 这种格式，转成数字
-    var rateMatch = (rate || '').match(/([+-]?\d+)%/);
-    if (rateMatch) utter.rate = 1 + parseInt(rateMatch[1], 10) / 100;
-    utter.rate = Math.max(0.5, Math.min(2, utter.rate));
-
-    var pitchMatch = (pitch || '').match(/([+-]?\d+)Hz/);
-    if (pitchMatch) utter.pitch = 1 + parseInt(pitchMatch[1], 10) / 20;
-    utter.pitch = Math.max(0, Math.min(2, utter.pitch || 1));
-
-    var volMatch = (volume || '').match(/([+-]?\d+)%/);
-    if (volMatch) utter.volume = 1 + parseInt(volMatch[1], 10) / 100;
-    utter.volume = Math.max(0, Math.min(1, utter.volume || 1));
-
-    // 音色选择：自然音（晓晓/在线 neural）优先；无自然音时才用任意中文（机械音）兜底
-    var zhVoice = pickBestZhVoice();
-    if (zhVoice) utter.voice = zhVoice;
-
-    var spoken = false;
-    var fakeAudio = {
-      play: function() {
-        if (spoken) return Promise.resolve();
-        spoken = true;
-        window.speechSynthesis.speak(utter);
-        return new Promise(function(res) {
-          utter.onend = function() { res(); };
-          utter.onerror = function() { res(); };
-        });
-      },
-      pause: function() {
-        window.speechSynthesis.cancel();
-      },
-      // 加一个标记，让调用方能识别这是 Web Speech 模式
-      _isWebSpeech: true,
-      src: 'webspeech://' + text.slice(0, 20),
-    };
+function _speakViaWebSpeech(text) {
+  // 兜底降级路径：不在此处真正发声，只返回 webspeech: 标记，
+  // 由上层 speechController 统一接管并单路播放（避免与后端 TTS 形成"双 TTS 唱双簧"）。
+  // 这里无需再构造 SpeechSynthesisUtterance / fakeAudio —— 那套已废弃，发声收敛到 speechController。
+  return new Promise(function(resolve) {
     resolve('webspeech:' + encodeURIComponent(text));
   });
 }
@@ -229,9 +190,10 @@ function _speakViaWebSpeech(text, voice, rate, pitch, volume) {
  *   - blob:http://... → 神经语音，new Audio(url) 即可播放
  *   - webspeech:... → 走浏览器 Web Speech API，需调用方特殊处理（直接 speak）
  *
- * 为什么不在这一层直接播？因为上层（DigitalHumanStage / FloatingCompanion）
- * 需要统一管理 audioRef 的暂停/取消，接口保持 URL 形式最省事。
- * Web Speech 的情况上层会检测前缀并走特殊分支。
+ * 为什么不在这一层直接播？因为发声已统一收敛到 speechController 单路播放：
+ * 本层只负责"合成拿到音频 URL（blob:）或返回 webspeech: 降级标记"，
+ * 实际播放/暂停/打断都由 speechController.playSpeech/_playUtterance 统一管理，
+ * 从而保证同一时刻只有一路发声（避免双 TTS 唱双簧）。
  */
 export function neuralSpeak(text, expression, opts) {
   expression = expression || 'neutral';
@@ -264,7 +226,7 @@ export function neuralSpeak(text, expression, opts) {
   return _speakViaBackend(text, voice, rate, pitch, volume, expression)
     .catch(function(err) {
       console.warn('[TTS] backend failed, fallback to Web Speech API:', err.message);
-      return _speakViaWebSpeech(text, voice, rate, pitch, volume);
+      return _speakViaWebSpeech(text);
     })
     .then(function(url) {
       // 成功：拿到音频 URL（blob: 或 webspeech: 兜底）

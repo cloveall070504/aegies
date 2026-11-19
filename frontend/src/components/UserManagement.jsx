@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { createUser, deleteUser, listUsers, updateUser } from '../api/auth'
 
+/**
+ * 用户管理（仅管理员）：用户的增删改查 + 软禁用/启用。
+ * 按角色/关键词筛选，支持新建用户、编辑角色与部门、停用账号（is_active=false）。
+ */
+
 const ROLE_BADGE = {
   admin: { label: '管理员', color: '#f59e0b', bg: 'rgba(245,158,11,0.16)' },
   teacher: { label: '教师', color: '#3b82f6', bg: 'rgba(59,130,246,0.16)' },
