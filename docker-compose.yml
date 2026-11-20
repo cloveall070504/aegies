@@ -5,7 +5,8 @@
 #   - 后端 API：http://localhost:8000/docs
 #   - PostgreSQL：容器内 5432（账号见下方 environment）
 #
-# 生产部署请把所有明文密码改为环境变量 / secrets。
+# 所有敏感配置（数据库密码、JWT 密钥、大模型 Key）均通过 .env 文件注入，
+# .env 已被 gitignore，不会进仓库。未提供时回退到下方默认值（仅供本地开发）。
 
 services:
   db:
@@ -14,7 +15,7 @@ services:
     environment:
       POSTGRES_DB: avoid_error
       POSTGRES_USER: avoid_user
-      POSTGRES_PASSWORD: avoid_pass_change_me
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-avoid_pass_change_me}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -38,15 +39,19 @@ services:
       retries: 3
       start_period: 30s
     environment:
-      DATABASE_URL: postgresql://avoid_user:avoid_pass_change_me@db:5432/avoid_error
-      SECRET_KEY: please_change_this_in_production
-      CORS_ORIGINS: "http://localhost:8080"
+      DATABASE_URL: postgresql://avoid_user:${DB_PASSWORD:-avoid_pass_change_me}@db:5432/avoid_error
+      SECRET_KEY: ${SECRET_KEY:-please_change_this_in_production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
       ENABLE_OLLAMA: "false"
       # 容器部署：监听所有网卡、端口 8000（由 start.py 读取）
       HOST: "0.0.0.0"
       PORT: "8000"
       LOG_LEVEL: "INFO"
-      # 若部署了 Ollama，可改为 true 并配置 OLLAMA_BASE_URL
+      # 云端大模型（OpenAI 兼容，如通义千问 DashScope）：AI_PROVIDER=cloud 时走云端
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-qwen-plus}
     ports:
       - "8000:8000"
 
@@ -57,7 +62,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "8080:80"
+      - "${FRONTEND_PORT:-8080}:80"
 
 volumes:
   pgdata:
