@@ -2,7 +2,8 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm install
+# 用国内 npm 镜像源加速（国内服务器直连 npm registry 易卡）
+RUN npm config set registry https://registry.npmmirror.com && npm install
 COPY . .
 RUN npm run build
 
