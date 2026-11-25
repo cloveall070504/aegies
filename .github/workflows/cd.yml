@@ -17,6 +17,7 @@ jobs:
           username: ${{ secrets.ECS_USER }}
           key: ${{ secrets.ECS_SSH_KEY }}
           port: ${{ secrets.ECS_PORT }}
+          command_timeout: 30m
           script: |
             set -e
             cd ${{ secrets.ECS_DEPLOY_DIR }}
@@ -27,7 +28,7 @@ jobs:
             git reset --hard origin/master
             git clean -fd -e '.env' -e 'backend/.env' -e 'frontend/.env' -e 'deploy.log'
 
-            # 用默认 compose 文件（docker-compose.yml）重新构建并拉起，与你现有 deploy.sh 一致
+            # 用默认 compose 文件（docker-compose.yml）重新构建并拉起
             docker compose --env-file .env up -d --build --remove-orphans
 
             # 清理无引用镜像，避免磁盘被历史构建撑满
