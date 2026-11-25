@@ -32,8 +32,7 @@ services:
       - frontend
 
   frontend:
-    # 镜像由 GitHub Actions CD 推送到阿里云 ACR，服务器直接拉取、无需本地构建
-    image: ${ACR_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${ACR_NAMESPACE}/chy07-frontend:${IMAGE_TAG:-latest}
+    build: ./frontend
     restart: unless-stopped
     expose:
       - "80"
@@ -41,7 +40,7 @@ services:
       - backend
 
   backend:
-    image: ${ACR_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${ACR_NAMESPACE}/chy07-backend:${IMAGE_TAG:-latest}
+    build: ./backend
     restart: unless-stopped
     expose:
       - "8000"

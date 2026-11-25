@@ -5,74 +5,30 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
-env:
-  # 阿里云容器镜像服务 ACR（个人版地域默认 registry.cn-hangzhou.aliyuncs.com，
-  # 若你开通的是其它地域，改 ACR_REGISTRY 即可，命名空间与镜像名用变量占位）
-  ACR_REGISTRY: registry.cn-hangzhou.aliyuncs.com
-  ACR_NAMESPACE: ${{ secrets.ACR_NAMESPACE }}
-  BACKEND_IMAGE: ${{ secrets.ACR_NAMESPACE }}/chy07-backend
-  FRONTEND_IMAGE: ${{ secrets.ACR_NAMESPACE }}/chy07-frontend
-
 jobs:
-  build-and-push:
-    name: Build & push images to ACR
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Alibaba Cloud ACR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.ACR_REGISTRY }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-
-      # 用 commit sha 作为镜像 tag，保证每次发布可回滚、可追溯
-      - name: Build & push backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          push: true
-          tags: |
-            ${{ env.ACR_REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-            ${{ env.ACR_REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
-
-      - name: Build & push frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          push: true
-          tags: |
-            ${{ env.ACR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
-            ${{ env.ACR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
-
   deploy:
     name: Deploy to ECS
-    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy over SSH
+      - name: Deploy over SSH (git pull + build)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
           key: ${{ secrets.ECS_SSH_KEY }}
-          port: ${{ secrets.ECS_PORT || '22' }}
+          port: ${{ secrets.ECS_PORT }}
           script: |
             set -e
             cd ${{ secrets.ECS_DEPLOY_DIR }}
 
-            # 拉取本次发布对应的镜像 tag（用 commit sha 精确对齐，latest 兜底）
-            docker pull ${{ env.ACR_REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-            docker pull ${{ env.ACR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
-            docker tag ${{ env.ACR_REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }} ${{ env.ACR_REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
-            docker tag ${{ env.ACR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }} ${{ env.ACR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+            # 确认远端指向 GitHub（仓库公开，HTTPS 匿名拉取无需凭据），然后拉最新代码
+            git remote set-url origin https://github.com/cloveall070504/aegies.git 2>/dev/null || true
+            git fetch origin
+            git reset --hard origin/master
+            git clean -fd -e '.env' -e 'backend/.env' -e 'frontend/.env' -e 'deploy.log'
 
-            # 用生产 compose 文件拉起（镜像已推送到 ACR，服务器无需源码构建）
-            docker compose -f docker-compose.prod.yml --env-file .env up -d --remove-orphans
+            # 用默认 compose 文件（docker-compose.yml）重新构建并拉起，与你现有 deploy.sh 一致
+            docker compose --env-file .env up -d --build --remove-orphans
 
-            # 清理无引用镜像，避免磁盘被历史版本撑满
+            # 清理无引用镜像，避免磁盘被历史构建撑满
             docker image prune -f
