@@ -1,82 +1,65 @@
 # ChemGuard 生产部署（CD）指南
 
-> 目标：`git push` 到 GitHub `main/master` 分支后，自动构建前后端镜像 → 推送到阿里云 ACR → SSH 登录 ECS 拉取并重启服务。
+> 目标：`git push` 到 GitHub `master` 分支后，GitHub Actions 自动 SSH 到 ECS，执行 `git pull` + `docker compose up -d --build` 完成更新。
 
 ## 一、整体架构
 
 ```
-本地 push ──▶ GitHub Actions (cd.yml)
+本地 push ──▶ GitHub (cloveall070504/aegies, 公开仓库)
                 │
-                ├─ ① build backend/frontend 镜像
-                │      docker/build-push-action
                 ▼
-          阿里云 ACR (registry.cn-hangzhou.aliyuncs.com/<命名空间>/chy07-backend|frontend)
-                │
-                ├─ ② appleboy/ssh-action 登录 ECS
-                │      docker pull → docker tag → compose up -d
+        GitHub Actions (cd.yml)
+                │  appleboy/ssh-action 用私钥免密登录 ECS
                 ▼
-          阿里云 ECS (已部署 caddy + frontend + backend + postgres)
+        ECS /root/project
+          git pull origin master (HTTPS 匿名)
+          docker compose up -d --build
+                ▼
+           线上更新 (frontend:80 + backend:8000 + postgres)
 ```
 
-## 二、前置条件
+## 二、现状（已确认）
 
-1. 仓库已推送到 GitHub（当前在 Gitee `gitee.com/cloveall/chy07`，需迁移或镜像到 GitHub）。
-2. 已开通**阿里云容器镜像服务 ACR**（个人版免费），并创建命名空间。
-3. 已在 ACR 开通**访问凭证**（用户名 + 密码），用于 `docker login`。
-4. ECS 上已安装 docker + docker compose，且已有一份 `docker-compose.prod.yml` + `Caddyfile` + `.env`（已部署在跑则满足）。
+- ECS：`47.95.23.29`，SSH 用户 `root`，端口 `22`，部署目录 `/root/project`
+- 线上实际用 **`docker-compose.yml`**（非 prod 版）：前端 `FRONTEND_PORT=80` 映射 80，后端暴露 8000，无 Caddy/HTTPS，直接 `http://47.95.23.29` 访问
+- 原本用 Gitee webhook（`receiver.py` 在 9000 端口）触发 `deploy.sh`；改用 GitHub Actions 后这套可退役
 
-## 三、需要配置的 GitHub Secrets
+## 三、需要配置的 GitHub Secrets（共 5 个）
 
-在 GitHub 仓库 **Settings → Secrets and variables → Actions** 中添加以下 secrets：
+在 GitHub 仓库 **Settings → Secrets and variables → Actions → New repository secret** 添加：
 
-| Secret 名 | 说明 | 示例 |
-|---|---|---|
-| `ACR_REGISTRY` | ACR 地域地址（个人版默认杭州） | `registry.cn-hangzhou.aliyuncs.com` |
-| `ACR_NAMESPACE` | ACR 命名空间名 | `cloveall` |
-| `ACR_USERNAME` | ACR 访问凭证用户名 | `cloveall` |
-| `ACR_PASSWORD` | ACR 访问凭证密码 | `xxxx` |
-| `ECS_HOST` | ECS 公网 IP 或域名 | `8.210.254.49` |
-| `ECS_USER` | SSH 登录用户名 | `root` |
-| `ECS_PORT` | SSH 端口（默认 22，可省） | `22` |
-| `ECS_SSH_KEY` | 私钥（用于 SSH 免密登录） | `-----BEGIN OPENSSH PRIVATE KEY-----…` |
-| `ECS_DEPLOY_DIR` | ECS 上项目部署目录（含 compose 文件） | `/opt/chy07` |
+| Secret 名 | 值 |
+|---|---|
+| `ECS_HOST` | `47.95.23.29` |
+| `ECS_USER` | `root` |
+| `ECS_PORT` | `22` |
+| `ECS_SSH_KEY` | 本机 `~/.ssh/id_ed25519_ecs` 私钥内容（整段粘贴） |
+| `ECS_DEPLOY_DIR` | `/root/project` |
 
-> 关于 `ECS_SSH_KEY`：在 ECS 上 `ssh-keygen` 生成密钥对，把公钥追加到 `~/.ssh/authorized_keys`，私钥内容粘到 secret（多行原样保留）。
+## 四、ECS 上已就绪（无需改动）
 
-## 四、ECS 上的 .env 需补充的变量
-
-现有 `.env` 需追加以下键（参考 `.env.example`）：
-
-```bash
-ACR_REGISTRY=registry.cn-hangzhou.aliyuncs.com
-ACR_NAMESPACE=<你的命名空间>
-IMAGE_TAG=latest
-```
+- 免密登录：本机公钥 `~/.ssh/id_ed25519_ecs.pub` 已追加到 ECS `~/.ssh/authorized_keys`
+- `.env` 已在 `/root/project/.env`（含 `DB_PASSWORD`/`SECRET_KEY`/`OPENAI_API_KEY`/`FRONTEND_PORT=80` 等），`cd.yml` 的 `git clean -e` 会保留它
 
 ## 五、首次部署步骤
 
-1. 把 `docker-compose.prod.yml`（已改为从 ACR 拉镜像）同步到 ECS 的部署目录，覆盖旧的。
-2. 在 ECS 上手动登录一次 ACR，确保能拉镜像：
-   ```bash
-   docker login registry.cn-hangzhou.aliyuncs.com -u <ACR_USERNAME>
-   ```
-3. 本地 push 代码到 GitHub `main`，触发 `cd.yml`。
-4. 在 GitHub Actions 页面查看 `CD (Deploy to Alibaba Cloud ECS)` 运行结果。
+1. 本地 push 代码到 GitHub `master`（`cd.yml` 已在仓库里）。
+2. GitHub Actions 自动触发 `CD (Deploy to Alibaba Cloud ECS)`。
+3. 或在仓库 Actions 页手动 `Run workflow`（`workflow_dispatch`）。
 
 ## 六、回滚
 
-每次发布镜像都会打上 `commit sha` 的 tag，回滚只需在 ECS 上：
-
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env down
-IMAGE_TAG=<旧commit-sha> docker compose -f docker-compose.prod.yml --env-file .env up -d
+# ECS 上切回旧提交
+cd /root/project
+git reset --hard <旧commit-sha>
+docker compose up -d --build
 ```
-
-或直接在 GitHub Actions 里对旧 commit 重新 `workflow_dispatch`。
 
 ## 七、注意事项
 
 - **数据库迁移**：backend 启动时在 lifespan 内自动执行 Alembic 迁移（幂等），无需手动跑。
-- **数据持久化**：`pgdata` / `caddy_data` / `caddy_config` / `backend_data` 四个 named volume 不会因镜像更新而丢失。
-- **零停机**：`docker compose up -d` 会先起新容器再停旧容器，滚动更新，不会长时间中断。
-- **磁盘清理**：deploy 脚本末尾有 `docker image prune -f`，清理无引用镜像，防止历史版本撑满磁盘。
+- **数据持久化**：`pgdata` named volume 不会因重建而丢数据。
+- **敏感文件保护**：`git clean -fd -e '.env' -e 'backend/.env' -e 'frontend/.env' -e 'deploy.log'` 会保留这些本地文件。
+- **磁盘清理**：deploy 脚本末尾 `docker image prune -f` 清理无引用镜像。
+- **仓库公开**：`aegies` 仓库是 public，ECS 用 HTTPS 匿名拉取无需配 GitHub 凭据；若以后改 private，需在 ECS 配 token 或 deploy key。
