@@ -55,7 +55,7 @@ export default function Login() {
         </div>
 
         <div className="login-aside__hero">
-          <h2 className="login-aside__title">把每一次<br />危险操作<br /></h2>
+          <h2 className="login-aside__title"></h2>
           <p className="login-aside__desc">
             沉浸式化学实验风险实训平台：发现错误 → 理解后果 → 规避错误 → 能力提升。
             规则引擎为唯一真相源，双智能体在线校验，AI 仅做解释增强。
