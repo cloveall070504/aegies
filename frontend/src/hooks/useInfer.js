@@ -3,7 +3,7 @@
  * 负责：提交操作行为 → 获取风险推演结果（含双智能体校验、条款溯源）。
  */
 import { useCallback, useState } from 'react'
-import { inferScenario } from '../api/scenario'
+import { inferScenario, animateScenario } from '../api/scenario'
 import { useCurrentScene } from './useSceneType'
 
 export function useInfer() {
@@ -14,6 +14,7 @@ export function useInfer() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
+  const [animation, setAnimation] = useState(null)
 
   const submit = useCallback(
     async () => {
@@ -23,9 +24,17 @@ export function useInfer() {
       }
       setLoading(true)
       setError('')
+      setAnimation(null)
       try {
         const data = await inferScenario(behavior.trim(), sceneType, sceneCode)
         setResult(data)
+        // 并行触发未来后果动画（复用同一行为，规则引擎唯一事实源）
+        try {
+          const anim = await animateScenario(behavior.trim(), sceneType, sceneCode)
+          setAnimation(anim)
+        } catch {
+          // 动画失败不阻塞主推演结果展示
+        }
       } catch (err) {
         setError(err.message)
       } finally {
@@ -37,12 +46,13 @@ export function useInfer() {
 
   const reset = useCallback(() => {
     setResult(null)
+    setAnimation(null)
     setBehavior('')
     setError('')
   }, [])
 
   return {
     currentScene, sceneType, sceneCode, behavior, setBehavior,
-    loading, error, result, submit, reset,
+    loading, error, result, animation, submit, reset,
   }
 }

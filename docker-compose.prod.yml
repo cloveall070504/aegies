@@ -4,7 +4,9 @@
 #   1. 服务器已安装 docker + docker compose
 #   2. 域名已解析到本机公网 IP，且防火墙放行 80/443
 #   3. 已存在 .env（由 .env.example 复制并填好；本项目已生成 .env）
-# 用法：
+# 用法（镜像已由 CD 推送到 ACR，服务器直接拉取）：
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d
+# 手动构建（首次本地验证时可用）：
 #   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 # 访问：https://${DOMAIN}
 # 说明：
@@ -30,7 +32,8 @@ services:
       - frontend
 
   frontend:
-    build: ./frontend
+    # 镜像由 GitHub Actions CD 推送到阿里云 ACR，服务器直接拉取、无需本地构建
+    image: ${ACR_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${ACR_NAMESPACE}/chy07-frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     expose:
       - "80"
@@ -38,7 +41,7 @@ services:
       - backend
 
   backend:
-    build: ./backend
+    image: ${ACR_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${ACR_NAMESPACE}/chy07-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     expose:
       - "8000"

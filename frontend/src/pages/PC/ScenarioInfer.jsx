@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import ScoreGauge from '../../components/ScoreGauge'
 import RiskTag from '../../components/RiskTag'
 import DualCheckBadge from '../../components/DualCheckBadge'
+import ConsequenceAnimation from '../../components/ConsequenceAnimation'
 import { useInfer } from '../../hooks/useInfer'
+import { animateScenario } from '../../api/scenario'
 
 // 按场景 code 提供示例输入（仅化学实验）
 const EXAMPLES_BY_SCENE = {
@@ -72,9 +74,8 @@ function highlightClauses(text, refs) {
 }
 
 export default function ScenarioInfer() {
-  const { currentScene, sceneCode, behavior, setBehavior, loading, error, result, submit } = useInfer()
+  const { currentScene, sceneCode, behavior, setBehavior, loading, error, result, animation, submit } = useInfer()
   const [params] = useSearchParams()
-
   // 从扫描/案例库跳转过来时，URL 携带 ?behavior= 自动预填
   useEffect(() => {
     const b = params.get('behavior')
@@ -186,6 +187,13 @@ export default function ScenarioInfer() {
                 divergence={result.critic_divergence}
                 summary={result.critic_summary}
               />
+
+              {animation && (
+                <ConsequenceAnimation
+                  animation={animation.animation}
+                  level={animation.level || result.level}
+                />
+              )}
 
               <div className="card">
                 <h3 className="section-title"><span className="dot" />判定依据（可解释证据链）</h3>

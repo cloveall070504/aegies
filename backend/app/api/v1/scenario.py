@@ -11,10 +11,41 @@ from app.models.operation_record import OperationRecord
 from app.models.user import User
 from app.schemas import ScenarioInferRequest
 from app.services.agent_service import AgentService
+from app.services.animation_service import build_animation
 from app.services.profile_service import refresh_profile
 from app.utils.response import ok
 
 router = APIRouter(prefix="/scenario", tags=["场景推演"])
+
+
+@router.post("/animate")
+async def animate(
+    req: ScenarioInferRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """未来后果动画：对一条操作生成可动画演示的「未来后果」分镜。
+
+    复用 AgentService.infer 的规则引擎判定（唯一事实源），
+    再由 build_animation 确定性生成分镜脚本，不编造事故。
+    """
+    result = await AgentService(db).infer(req.behavior, req.scene_type)
+    animation = build_animation(
+        behavior=req.behavior,
+        level=result["level"],
+        consequence=result["consequence"],
+        correction=result["correction"],
+    )
+    data = {
+        "behavior": req.behavior,
+        "level": result["level"],
+        "risk_score": result["risk_score"],
+        "animation": animation,
+        "trust_mode": result["trust_mode"],
+        "ai_provider": result["ai_provider"],
+        "confidence": result["confidence"],
+    }
+    return ok(data)
 
 
 @router.post("/infer")

@@ -7,6 +7,7 @@ import RiskCard from '../../components/RiskCard'
 import PageHead from '../../components/PageHead'
 import EngineModeBadge from '../../components/EngineModeBadge'
 import ScoreBreakdown from '../../components/ScoreBreakdown'
+import ConsequenceAnimation from '../../components/ConsequenceAnimation'
 import { useScan } from '../../hooks/useScan'
 import { listScenes } from '../../api/scenes'
 import { isAllowedScene } from '../../utils/sceneFilter'
@@ -357,6 +358,15 @@ export default function Sandbox() {
                       🎬 仿真旁白 · {(r.actor_reply && r.actor_reply.trim()) ? 'AI 生成' : '规则引擎生成'}
                     </span>
                     {r.world_reaction}
+                  </div>
+
+                  {/* 未来后果动画：将「这一步之后会发生什么」可视化（规则引擎唯一事实源，非 AI 编造） */}
+                  <div style={{ marginTop: 14 }}>
+                    <ConsequenceAnimation
+                      behavior={entry.step}
+                      level={r.level}
+                      consequence={r.consequence}
+                    />
                   </div>
 
                   <div style={{ display: 'flex', gap: 22, alignItems: 'center', flexWrap: 'wrap', marginTop: 14 }}>
